@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OnMyMind v1.0</title>
+  <style>
+    :root {
+      --toolbar-bg: #f0f0f0;
+      --toolbar-button-bg: #e0e0e0;
+      --canvas-bg: #fafafa;
+      --node-bg: #fff;
+      --node-border: #000;
+      --text-color: #000;
+      --connector-color: #456;
+      --selected-outline: #36f;
+      --link-color: #0000ee;
+      --link-visited-color: #551a8b;
+      --popup-bg: var(--toolbar-button-bg, #e0e0e0);
+      --popup-text: var(--text-color, #000);
+      --popup-border: var(--node-border, #000);
+    }
+    body.dark {
+      --toolbar-bg: #444;
+      --toolbar-button-bg: #555;
+      --canvas-bg: #333;
+      --node-bg: #555;
+      --node-border: #ccc;
+      --text-color: #ddd;
+      --connector-color: #9cf;
+      --selected-outline: #58a;
+      --link-color: #ff9999;
+      --link-visited-color: #e68a8a;
+      --popup-bg: var(--toolbar-button-bg, #555);
+      --popup-text: var(--text-color, #ddd);
+      --popup-border: var(--node-border, #ccc);
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      overflow: auto;
+      background: var(--canvas-bg);
+      color: var(--text-color);
+      transition: background-color 0.3s, color 0.3s;
+    }
+    #toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 5px;
+      background: var(--toolbar-bg);
+      border-bottom: 1px solid var(--node-border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      transition: background-color 0.3s, border-color 0.3s;
+    }
+    #toolbar button,
+    #toolbar input[type="color"] {
+      margin: 2px;
+      padding: 5px;
+      background: var(--toolbar-button-bg);
+      color: var(--text-color);
+      border: 1px solid var(--node-border);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+    }
+    #toolbar button:hover {
+      background: var(--canvas-bg);
+    }
+    #toolbar input[type="color"] {
+      width: 40px;
+      height: 28px;
+      padding: 2px;
+      vertical-align: middle;
+      cursor: pointer;
+    }
+    /* Version label aligned right */
+    #versionLabel {
+      margin-left: auto;
+      padding-right: 10px;
+      font-size: 0.9em;
+      color: var(--text-color);
+    }
+    #canvas {
+      position: relative;
+      background: var(--canvas-bg);
+      min-height: 100vh;
+      transform-origin: top left;
+      transition: background-color 0.3s;
+    }
+    .node {
+      position: absolute;
+      background: var(--node-bg);
+      border: 2px solid var(--node-border);
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+      cursor: move;
+      overflow: visible;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.3s, border-color 0.3s;
+      z-index: 2;
+    }
+    .node.rect {
+      min-width: 100px;
+      min-height: 50px;
+    }
+    .node.circle {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      min-width: 50px;
+      min-height: 50px;
+    }
+    .node.ellipse {
+      width: 150px;
+      height: 75px;
+      border-radius: 50%;
+      min-width: 100px;
+      min-height: 50px;
+    }
+    .node.selected {
+      outline: 3px dashed var(--selected-outline);
+      outline-offset: 2px;
+    }
+    .text {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      padding: 10px;
+      box-sizing: border-box;
+      overflow: auto;
+      outline: none;
+      text-align: center;
+      color: var(--text-color);
+      transition: color 0.3s;
+      z-index: 3;
+    }
+    .text a {
+      color: var(--link-color);
+      text-decoration: underline;
+      transition: color 0.3s;
+      cursor: pointer;
+    }
+    .text a:visited {
+      color: var(--link-visited-color);
+    }
+    .text-bold { font-weight: bold; }
+    .text-italic { font-style: italic; }
+    .text-underline { text-decoration: underline; }
+    .resize-handle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: var(--selected-outline, #36f);
+      border: 1px solid var(--node-border, #000);
+      bottom: -5px;
+      right: -5px;
+      cursor: nwse-resize;
+      display: none;
+      z-index: 5;
+    }
+    .node.selected .resize-handle {
+      display: block;
+    }
+    #linkPopup {
+      position: absolute;
+      display: none;
+      background-color: var(--popup-bg);
+      color: var(--popup-text);
+      border: 1px solid var(--popup-border);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.8em;
+      white-space: nowrap;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    canvas.jtk-connector {
+      position: absolute !important;
+      z-index: 1;
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <button id="themeToggle" title="Toggle Dark/Light Theme">Toggle Theme</button>
+    <button id="addRect" title="Add Rectangle Node">Rectangle</button>
+    <button id="addCircle" title="Add Circle Node">Circle</button>
+    <button id="addEllipse" title="Add Ellipse Node">Ellipse</button>
+    <button id="copyBtn" title="Copy Selected Node">Copy</button>
+    <button id="pasteBtn" title="Paste Node">Paste</button>
+    <button id="boldBtn" title="Toggle Bold">B</button>
+    <button id="italicBtn" title="Toggle Italic">I</button>
+    <button id="underlineBtn" title="Toggle Underline">U</button>
+    <button id="fontSizeDecreaseBtn" title="Decrease Font Size">-A</button>
+    <button id="fontSizeIncreaseBtn" title="Increase Font Size">+A</button>
+    <button id="bulletBtn" title="Insert Bullet List">• List</button>
+    <button id="alignLeftBtn" title="Align Text Left">Left</button>
+    <button id="alignCenterBtn" title="Align Text Center">Center</button>
+    <button id="alignRightBtn" title="Align Text Right">Right</button>
+    <button id="linkBtn" title="Create Link">Link</button>
+    <button id="zoomIn" title="Zoom In">+</button>
+    <button id="zoomOut" title="Zoom Out">-</button>
+    <button id="rotateLeft" title="Rotate Selected Node Left">Rotate L</button>
+    <button id="rotateRight" title="Rotate Selected Node Right">Rotate R</button>
+    <input id="colorPicker" type="color" title="Change Selected Node Background"/>
+    <button id="saveBtn" title="Save OnMyMind (.omm)">Save</button>
+    <button id="loadBtn" title="Load OnMyMind (.omm)">Load</button>
+    <button id="exportPngBtn" title="Export as PNG">Export PNG</button>
+    <button id="exportPdfBtn" title="Export as PDF">Export PDF</button>
+    <input id="fileInput" type="file" accept=".omm" style="display:none;"/>
+    <div id="versionLabel">OnMyMind v1.0</div>
+  </div>
+
+  <div id="canvas"></div>
+  <div id="linkPopup"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script>
+    try {
+      jsPlumb.ready(function() {
+        const canvas = document.getElementById('canvas');
+        const colorPicker = document.getElementById('colorPicker');
+        const themeToggle = document.getElementById('themeToggle');
+        const fileInput = document.getElementById('fileInput');
+        const linkPopup = document.getElementById('linkPopup');
+        let currentZoom = 1, selectedNode = null, offsetCount = 0, clipboardData = null;
+
+        if (!canvas) throw new Error("Canvas element not found!");
+
+        document.querySelectorAll('#toolbar button')
+                .forEach(b => b.addEventListener('mousedown', e => e.preventDefault()));
+
+        const getVar = varName => getComputedStyle(document.body).getPropertyValue(varName).trim();
+        const normalizeColor = str => {
+          if (!str || str==='transparent'||str==='rgba(0, 0, 0, 0)') return null;
+          if (/^#[0-9a-fA-F]{3}$/.test(str))
+            return `#${str[1]}${str[1]}${str[2]}${str[2]}${str[3]}${str[3]}`.toLowerCase();
+          if (/^#[0-9a-fA-F]{6}$/.test(str)) return str.toLowerCase();
+          try {
+            const ctx = document.createElement('canvas').getContext('2d');
+            if (!ctx) return str;
+            ctx.fillStyle = str;
+            const hex = ctx.fillStyle.toLowerCase();
+            if ((hex==='#000000'||hex==='#ffffff')&&
+                !/(black|white|#000|#fff|rgb\(0,\s*0,\s*0\)|rgb\(255,\s*255,\s*255\))/i.test(str))
+              return str;
+            return hex;
+          } catch(e){ return str; }
+        };
+
+        const instance = jsPlumb.getInstance({
+          Connector:['Bezier',{curviness:50}],
+          Endpoint:['Blank',{}],
+          PaintStyle:{ stroke:getVar('--connector-color'), strokeWidth:2 },
+          ConnectionOverlays:[['Arrow',{ width:10,length:10,location:1 }]],
+          Container:'canvas',
+          RenderMode:"canvas"
+        });
+
+        themeToggle.addEventListener('click',()=>{
+          document.body.classList.toggle('dark');
+          const c = getVar('--connector-color');
+          instance.importDefaults({ PaintStyle:{ stroke:c, strokeWidth:2 } });
+          instance.getAllConnections().forEach(conn=>
+            conn.setPaintStyle({ stroke:c, strokeWidth:2 })
+          );
+        });
+
+        function updateCanvasSize(){
+          let maxX=0,maxY=0;
+          document.querySelectorAll('.node').forEach(n=>{
+            maxX=Math.max(maxX,n.offsetLeft+n.offsetWidth);
+            maxY=Math.max(maxY,n.offsetTop+n.offsetHeight);
+          });
+          canvas.style.width=(maxX+200)+'px';
+          canvas.style.height=(maxY+200)+'px';
+        }
+
+        function setupResizing(nodeEl, handleEl){
+          let startX, startY, startW, startH;
+          const isCircle=nodeEl.classList.contains('circle');
+          const minW=isCircle?50:100, minH=isCircle?50:50;
+
+          function doDrag(e){
+            e.preventDefault();
+            let nw=startW+(e.clientX-startX)/currentZoom;
+            let nh=startH+(e.clientY-startY)/currentZoom;
+            nw=Math.max(minW,nw);
+            nh=Math.max(minH,nh);
+            if(isCircle){
+              const s=Math.max(nw,nh);
+              nodeEl.style.width=s+'px';
+              nodeEl.style.height=s+'px';
+            } else {
+              nodeEl.style.width=nw+'px';
+              nodeEl.style.height=nh+'px';
+            }
+            instance.revalidate(nodeEl.id);
+          }
+          function stopDrag(){
+            document.documentElement.removeEventListener('mousemove',doDrag);
+            document.documentElement.removeEventListener('mouseup',stopDrag);
+            document.documentElement.removeEventListener('mouseleave',stopDrag);
+            instance.revalidate(nodeEl.id);
+            updateCanvasSize();
+          }
+          handleEl.addEventListener('mousedown',e=>{
+            e.preventDefault(); e.stopPropagation();
+            startX=e.clientX; startY=e.clientY;
+            startW=nodeEl.offsetWidth; startH=nodeEl.offsetHeight;
+            document.documentElement.addEventListener('mousemove',doDrag);
+            document.documentElement.addEventListener('mouseup',stopDrag);
+            document.documentElement.addEventListener('mouseleave',stopDrag);
+          });
+        }
+
+        function makeNode(shape,data={}){
+          const id=data.id||'node_'+Date.now()+'_'+Math.random().toString(36).substr(2,5);
+          const node=document.createElement('div');
+          node.className=`node ${shape}`;
+          node.id=id;
+          const base=50+offsetCount*20; offsetCount++;
+          node.style.left=(data.left||base + window.scrollX/currentZoom)+'px';
+          node.style.top =(data.top ||base + window.scrollY/currentZoom)+'px';
+          node.dataset.angle=data.angle||0;
+          node.style.transform=`rotate(${node.dataset.angle}deg)`;
+          if(data.width) node.style.width=data.width;
+          if(data.height)node.style.height=data.height;
+
+          const text=document.createElement('div');
+          text.className='text';
+          text.contentEditable=true;
+          text.innerHTML=data.text||'Node';
+          if(data.color) node.style.backgroundColor=data.color;
+          if(data.textStyles){
+            if(data.textStyles.bold)      text.classList.add('text-bold');
+            if(data.textStyles.italic)    text.classList.add('text-italic');
+            if(data.textStyles.underline) text.classList.add('text-underline');
+            if(data.textStyles.textAlign)text.style.textAlign=data.textStyles.textAlign;
+            if(data.textStyles.fontSize) text.style.fontSize=data.textStyles.fontSize;
+          }
+          node.appendChild(text);
+          const handle=document.createElement('div');
+          handle.className='resize-handle';
+          node.appendChild(handle);
+          setupResizing(node,handle);
+          canvas.appendChild(node);
+          text.addEventListener('blur',()=>{
+            updateCanvasSize();
+            instance.revalidate(node.id);
+          });
+
+          node.addEventListener('click',e=>{
+            const link=e.target.closest('a');
+            const isHandle=e.target.classList.contains('resize-handle');
+            if(link){
+              e.preventDefault();
+              if(e.shiftKey){
+                const u=link.getAttribute('href');
+                if(u) window.open(u,'_blank','noopener');
+              }
+              e.stopPropagation();
+              return;
+            }
+            if(isHandle){
+              e.stopPropagation();
+              return;
+            }
+            if(selectedNode&&selectedNode!==node)selectedNode.classList.remove('selected');
+            selectedNode=node; node.classList.add('selected');
+            try{
+              const bg=getComputedStyle(node).backgroundColor;
+              const hx=normalizeColor(bg);
+              if(hx&&/^#[0-9a-fA-F]{6}$/.test(hx))colorPicker.value=hx;
+              else colorPicker.value=normalizeColor(getVar('--node-bg'))||'#ffffff';
+            }catch{}
+            e.stopPropagation();
+          });
+
+          instance.draggable(node,{
+            filter:".resize-handle, a",
+            start:()=>{},
+            stop:params=>{
+              params.el.style.left=params.pos[0]+'px';
+              params.el.style.top =params.pos[1]+'px';
+              updateCanvasSize();
+            }
+          });
+          const anchors=['Top','Right','Bottom','Left'];
+          instance.makeSource(node,{
+            filter:".text",
+            anchor:anchors,
+            connectorStyle:{ stroke:getVar('--connector-color'), strokeWidth:2 },
+            maxConnections:-1
+          });
+          instance.makeTarget(node,{
+            anchor:anchors,
+            maxConnections:-1,
+            allowLoopback:false
+          });
+          return node;
+        }
+
+        instance.registerConnectionType('basic',{ anchors:['Top','Right','Bottom','Left'] });
+        instance.bind('connection',()=>updateCanvasSize());
+        instance.bind('dblclick',(c,e)=>{ instance.deleteConnection(c); e.preventDefault(); });
+
+        canvas.addEventListener('mouseover',e=>{
+          const link=e.target.closest('a');
+          if(link&&link.closest('.node .text')){
+            linkPopup.textContent='Shift+Click to Go to Link';
+            linkPopup.style.left=e.pageX+10+'px';
+            linkPopup.style.top =e.pageY+10+'px';
+            linkPopup.style.display='block';
+          }
+        });
+        canvas.addEventListener('mouseout',e=>{
+          const link=e.target.closest('a');
+          if(link&&link.closest('.node .text'))
+            linkPopup.style.display='none';
+        });
+        canvas.addEventListener('mouseleave',()=>linkPopup.style.display='none');
+        canvas.addEventListener('click',e=>{
+          if(e.target===canvas && selectedNode){
+            selectedNode.classList.remove('selected');
+            selectedNode=null;
+          }
+        });
+
+        (function toolbar(){
+          ['Rect','Circle','Ellipse'].forEach(s=>{
+            document.getElementById('add'+s)
+              .addEventListener('click',()=>makeNode(s.toLowerCase()));
+          });
+          document.getElementById('copyBtn').addEventListener('click',()=>{
+            if(!selectedNode){ clipboardData=null; return; }
+            const n=selectedNode,t=n.querySelector('.text');
+            const def=normalizeColor(getVar('--node-bg'));
+            const comp=normalizeColor(getComputedStyle(n).backgroundColor);
+            clipboardData={
+              shape:n.classList.contains('circle')?'circle'
+                   :n.classList.contains('ellipse')?'ellipse'
+                   :'rect',
+              width:n.style.width||getComputedStyle(n).width,
+              height:n.style.height||getComputedStyle(n).height,
+              text:t.innerHTML,
+              angle:n.dataset.angle||0,
+              color:(comp&&comp!==def)?comp:null,
+              textStyles:{
+                bold:t.classList.contains('text-bold'),
+                italic:t.classList.contains('text-italic'),
+                underline:t.classList.contains('text-underline'),
+                textAlign:t.style.textAlign||'center',
+                fontSize:t.style.fontSize||null
+              }
+            };
+          });
+          document.getElementById('pasteBtn').addEventListener('click',()=>{
+            if(!clipboardData)return;
+            if(selectedNode)selectedNode.classList.remove('selected');
+            const nn=makeNode(clipboardData.shape,{...clipboardData});
+            selectedNode=nn; nn.classList.add('selected');
+          });
+
+          function toggle(cls){
+            if(!selectedNode)return;
+            const t=selectedNode.querySelector('.text');
+            t.classList.toggle(cls); t.focus();
+          }
+          document.getElementById('boldBtn').addEventListener('click',()=>toggle('text-bold'));
+          document.getElementById('italicBtn').addEventListener('click',()=>toggle('text-italic'));
+          document.getElementById('underlineBtn').addEventListener('click',()=>toggle('text-underline'));
+
+          const MIN_FS=8, MAX_FS=72, STEP=2;
+          function changeFS(d){
+            if(!selectedNode)return;
+            const t=selectedNode.querySelector('.text');
+            let c=parseFloat(t.style.fontSize)||parseFloat(getComputedStyle(t).fontSize)||16;
+            let n=Math.max(MIN_FS,Math.min(MAX_FS,c+d));
+            t.style.fontSize=n+'px';
+            instance.revalidate(selectedNode.id);
+          }
+          document.getElementById('fontSizeIncreaseBtn').addEventListener('click',()=>changeFS(STEP));
+          document.getElementById('fontSizeDecreaseBtn').addEventListener('click',()=>changeFS(-STEP));
+
+          ['alignLeftBtn','alignCenterBtn','alignRightBtn'].forEach((id,i)=>{
+            document.getElementById(id).addEventListener('click',()=>{
+              if(!selectedNode)return;
+              selectedNode.querySelector('.text').style.textAlign=['left','center','right'][i];
+            });
+          });
+
+          document.getElementById('bulletBtn').addEventListener('click',()=>{
+            if(!selectedNode)return;
+            selectedNode.querySelector('.text').focus();
+            document.execCommand('insertUnorderedList');
+          });
+          document.getElementById('linkBtn').addEventListener('click',()=>{
+            if(!selectedNode)return;
+            const t=selectedNode.querySelector('.text');
+            t.focus();
+            const u=prompt('URL:','https://');
+            if(u){
+              document.execCommand('createLink',false,u);
+              t.querySelectorAll('a').forEach(a=>{
+                a.setAttribute('target','_blank');
+                a.setAttribute('rel','noopener noreferrer');
+              });
+            }
+          });
+
+          function applyZoom(){
+            canvas.style.transform=`scale(${currentZoom})`;
+            instance.setZoom(currentZoom);
+            updateCanvasSize();
+          }
+          document.getElementById('zoomIn').addEventListener('click',()=>{
+            currentZoom*=1.1; applyZoom();
+          });
+          document.getElementById('zoomOut').addEventListener('click',()=>{
+            currentZoom/=1.1; applyZoom();
+          });
+
+          function rotateSel(d){
+            if(!selectedNode)return;
+            let a=parseInt(selectedNode.dataset.angle||0)+d;
+            selectedNode.dataset.angle=a;
+            selectedNode.style.transform=`rotate(${a}deg)`;
+            instance.revalidate(selectedNode.id);
+          }
+          document.getElementById('rotateLeft').addEventListener('click',()=>rotateSel(-15));
+          document.getElementById('rotateRight').addEventListener('click',()=>rotateSel(15));
+
+          colorPicker.addEventListener('input',()=>{
+            if(selectedNode) selectedNode.style.backgroundColor=colorPicker.value;
+          });
+
+          document.getElementById('saveBtn').addEventListener('click',()=>{
+            try {
+              const nodesToSave=[];
+              const defBg=normalizeColor(getVar('--node-bg'));
+              document.querySelectorAll('.node').forEach(n=>{
+                const t=n.querySelector('.text');
+                const comp=normalizeColor(getComputedStyle(n).backgroundColor);
+                const c=(comp&&comp!==defBg)?comp:null;
+                const s=n.classList.contains('circle')?'circle'
+                        :n.classList.contains('ellipse')?'ellipse'
+                        :'rect';
+                nodesToSave.push({
+                  id:n.id,shape:s,
+                  left:n.style.left,top:n.style.top,
+                  width:n.style.width||getComputedStyle(n).width,
+                  height:n.style.height||getComputedStyle(n).height,
+                  text:t.innerHTML,
+                  angle:n.dataset.angle||0,
+                  color:c,
+                  textStyles:{
+                    bold:t.classList.contains('text-bold'),
+                    italic:t.classList.contains('text-italic'),
+                    underline:t.classList.contains('text-underline'),
+                    textAlign:t.style.textAlign||'center',
+                    fontSize:t.style.fontSize||null
+                  }
+                });
+              });
+              const connectionsToSave=instance.getAllConnections().map(c=>({
+                source:c.source.id,target:c.target.id
+              }));
+              const dataToSave={ nodes:nodesToSave,connections:connectionsToSave };
+              const js=JSON.stringify(dataToSave,null,2);
+              const blob=new Blob([js],{type:'application/json'});
+              const url=URL.createObjectURL(blob);
+              const a=document.createElement('a');
+              a.href=url; a.download='onmymind.omm';
+              document.body.appendChild(a); a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            } catch(e){
+              alert('Error saving OnMyMind: '+(e.message||'Unknown error'));
+            }
+          });
+
+          document.getElementById('loadBtn').addEventListener('click',()=>fileInput.click());
+          fileInput.addEventListener('change',()=>{/* load logic */});
+
+          // EXPORT PNG
+          document.getElementById('exportPngBtn').addEventListener('click',()=>{
+            try {
+              instance.repaintEverything();
+              canvas.querySelectorAll('canvas.jtk-connector').forEach(cc=>{
+                cc.width=canvas.scrollWidth;
+                cc.height=canvas.scrollHeight;
+                cc.style.width=canvas.scrollWidth+'px';
+                cc.style.height=canvas.scrollHeight+'px';
+              });
+              if(selectedNode) selectedNode.classList.remove('selected');
+              const ox=window.scrollX, oy=window.scrollY;
+              window.scrollTo(0,0);
+              setTimeout(()=>{
+                html2canvas(canvas,{
+                  scale:1,
+                  width:canvas.scrollWidth,
+                  height:canvas.scrollHeight,
+                  windowWidth:canvas.scrollWidth,
+                  windowHeight:canvas.scrollHeight,
+                  scrollX:0,scrollY:0,
+                  useCORS:true,
+                  allowTaint:true,
+                  foreignObjectRendering:true,
+                  backgroundColor:getVar('--canvas-bg')
+                }).then(cEl=>{
+                  cEl.toBlob(blob=>{
+                    const a=document.createElement('a');
+                    a.href=URL.createObjectURL(blob);
+                    a.download='onmymind.png';
+                    document.body.appendChild(a); a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(a.href);
+                    if(selectedNode) selectedNode.classList.add('selected');
+                    window.scrollTo(ox,oy);
+                  });
+                }).catch(err=>{
+                  alert('Error exporting PNG: '+(err.message||'Unknown'));
+                  if(selectedNode) selectedNode.classList.add('selected');
+                  window.scrollTo(ox,oy);
+                });
+              },200);
+            } catch(e){
+              alert('Error exporting PNG: '+(e.message||'Unknown'));
+            }
+          });
+
+          // EXPORT PDF
+          document.getElementById('exportPdfBtn').addEventListener('click',()=>{
+            try {
+              instance.repaintEverything();
+              canvas.querySelectorAll('canvas.jtk-connector').forEach(cc=>{
+                cc.width=canvas.scrollWidth;
+                cc.height=canvas.scrollHeight;
+                cc.style.width=canvas.scrollWidth+'px';
+                cc.style.height=canvas.scrollHeight+'px';
+              });
+              if(selectedNode) selectedNode.classList.remove('selected');
+              const ox=window.scrollX, oy=window.scrollY;
+              window.scrollTo(0,0);
+              setTimeout(()=>{
+                html2canvas(canvas,{
+                  scale:1,
+                  width:canvas.scrollWidth,
+                  height:canvas.scrollHeight,
+                  windowWidth:canvas.scrollWidth,
+                  windowHeight:canvas.scrollHeight,
+                  scrollX:0,scrollY:0,
+                  useCORS:true,
+                  allowTaint:true,
+                  foreignObjectRendering:true,
+                  backgroundColor:getVar('--canvas-bg')
+                }).then(cEl=>{
+                  const imgData=cEl.toDataURL('image/png');
+                  const { jsPDF }=window.jspdf;
+                  const orient=canvas.scrollWidth>canvas.scrollHeight?'l':'p';
+                  const pdf=new jsPDF({orientation:orient,unit:'pt',format:[canvas.scrollWidth,canvas.scrollHeight]});
+                  pdf.addImage(imgData,'PNG',0,0,canvas.scrollWidth,canvas.scrollHeight);
+                  pdf.save('onmymind.pdf');
+                  if(selectedNode) selectedNode.classList.add('selected');
+                  window.scrollTo(ox,oy);
+                }).catch(err=>{
+                  alert('Error exporting PDF: '+(err.message||'Unknown'));
+                  if(selectedNode) selectedNode.classList.add('selected');
+                  window.scrollTo(ox,oy);
+                });
+              },200);
+            } catch(e){
+              alert('Error exporting PDF: '+(e.message||'Unknown'));
+            }
+          });
+
+        })();
+
+        updateCanvasSize();
+      });
+    } catch(e){
+      alert('Startup error: '+(e.message||'Unknown'));
+    }
+  </script>
+</body>
+</html>
