@@ -154,6 +154,15 @@
     canvas.jtk-connector {
       position: absolute !important; z-index: 1; pointer-events: auto;
     }
+    /* Footer credit */
+    #footer {
+      position: fixed;
+      bottom: 5px;
+      right: 10px;
+      font-size: 0.8em;
+      color: var(--text-color);
+      opacity: 0.7;
+    }
   </style>
 </head>
 <body>
@@ -189,6 +198,7 @@
 
   <div id="canvas"></div>
   <div id="linkPopup"></div>
+  <div id="footer">Created by Jonas Lund 2025</div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -204,19 +214,14 @@
         const themeToggle = document.getElementById('themeToggle');
         const fileInput = document.getElementById('fileInput');
         const linkPopup = document.getElementById('linkPopup');
-        let currentZoom = 1;
-        let selectedNode = null;
-        let offsetCount = 0;
-        let clipboardData = null;
+        let currentZoom = 1, selectedNode = null, offsetCount = 0, clipboardData = null;
 
         if (!canvas) throw new Error("Canvas element not found!");
 
-        // Prevent toolbar buttons from grabbing focus
         document.querySelectorAll('#toolbar button').forEach(b =>
           b.addEventListener('mousedown', e => e.preventDefault())
         );
 
-        // Helpers
         const getVar = name => getComputedStyle(document.body).getPropertyValue(name).trim();
         const normalizeColor = str => {
           if (!str || str === 'transparent' || str === 'rgba(0, 0, 0, 0)') return null;
@@ -237,17 +242,15 @@
           }
         };
 
-        // Initialize jsPlumb instance
         const instance = jsPlumb.getInstance({
           Connector: ['Bezier',{curviness:50}],
           Endpoint: ['Blank',{}],
           PaintStyle: { stroke: getVar('--connector-color'), strokeWidth: 2 },
           ConnectionOverlays: [['Arrow',{ width:10, length:10, location:1 }]],
           Container: 'canvas',
-          RenderMode: "canvas"
+          RenderMode: 'canvas'
         });
 
-        // Theme toggle
         themeToggle.addEventListener('click', () => {
           document.body.classList.toggle('dark');
           const c = getVar('--connector-color');
@@ -257,7 +260,6 @@
           );
         });
 
-        // Resize canvas to fit all nodes
         function updateCanvasSize() {
           let maxX = 0, maxY = 0;
           document.querySelectorAll('.node').forEach(n => {
@@ -268,7 +270,6 @@
           canvas.style.height = (maxY + 200) + 'px';
         }
 
-        // Corner‐resize handler
         function setupResizing(nodeEl, handleEl) {
           let startX, startY, startW, startH;
           const isCircle = nodeEl.classList.contains('circle');
@@ -311,7 +312,6 @@
           });
         }
 
-        // Node factory
         function makeNode(shape, data = {}) {
           const id = data.id || 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
           const node = document.createElement('div');
@@ -319,8 +319,8 @@
           node.id = id;
 
           const base = 50 + offsetCount * 20; offsetCount++;
-          node.style.left  = (data.left  || (base + window.scrollX / currentZoom)) + 'px';
-          node.style.top   = (data.top   || (base + window.scrollY / currentZoom)) + 'px';
+          node.style.left = (data.left  || (base + window.scrollX / currentZoom)) + 'px';
+          node.style.top  = (data.top   || (base + window.scrollY / currentZoom)) + 'px';
           node.dataset.angle = data.angle || 0;
           node.style.transform = `rotate(${node.dataset.angle}deg)`;
 
@@ -352,7 +352,6 @@
             instance.revalidate(node.id);
           });
 
-          // Selection & link logic
           node.addEventListener('click', e => {
             const a = e.target.closest('a');
             const isHandle = e.target.classList.contains('resize-handle');
@@ -375,7 +374,6 @@
             e.stopPropagation();
           });
 
-          // Draggable + connectable
           instance.draggable(node, {
             filter: ".resize-handle, a",
             start: () => {},
@@ -397,7 +395,6 @@
           return node;
         }
 
-        // jsPlumb events
         instance.registerConnectionType('basic', { anchors: ['Top','Right','Bottom','Left'] });
         instance.bind('connection', () => updateCanvasSize());
         instance.bind('dblclick', (conn, evt) => {
@@ -405,7 +402,6 @@
           evt.preventDefault();
         });
 
-        // Link popup
         canvas.addEventListener('mouseover', e => {
           const a = e.target.closest('a');
           if (a && a.closest('.node .text')) {
@@ -419,8 +415,6 @@
           if (e.target.closest('a')) linkPopup.style.display = 'none';
         });
         canvas.addEventListener('mouseleave', () => linkPopup.style.display = 'none');
-
-        // Deselect on blank canvas click
         canvas.addEventListener('click', e => {
           if (e.target === canvas && selectedNode) {
             selectedNode.classList.remove('selected');
@@ -428,15 +422,11 @@
           }
         });
 
-        // Toolbar setup
         (function setupToolbar() {
           ['Rect','Circle','Ellipse'].forEach(s => {
-            document.getElementById('add' + s).addEventListener('click', () =>
-              makeNode(s.toLowerCase())
-            );
+            document.getElementById('add'+s)
+              .addEventListener('click', ()=> makeNode(s.toLowerCase()));
           });
-
-          // Copy
           document.getElementById('copyBtn').addEventListener('click', () => {
             if (!selectedNode) { clipboardData = null; return; }
             const t = selectedNode.querySelector('.text');
@@ -446,11 +436,11 @@
               shape: selectedNode.classList.contains('circle') ? 'circle'
                     : selectedNode.classList.contains('ellipse') ? 'ellipse'
                     : 'rect',
-              width: selectedNode.style.width  || getComputedStyle(selectedNode).width,
+              width:  selectedNode.style.width  || getComputedStyle(selectedNode).width,
               height: selectedNode.style.height || getComputedStyle(selectedNode).height,
-              text:  t.innerHTML,
-              angle: selectedNode.dataset.angle || 0,
-              color: (compBg && compBg !== defBg) ? compBg : null,
+              text:   t.innerHTML,
+              angle:  selectedNode.dataset.angle || 0,
+              color:  (compBg && compBg !== defBg) ? compBg : null,
               textStyles: {
                 bold:      t.classList.contains('text-bold'),
                 italic:    t.classList.contains('text-italic'),
@@ -460,28 +450,21 @@
               }
             };
           });
-
-          // Paste
           document.getElementById('pasteBtn').addEventListener('click', () => {
             if (!clipboardData) return;
             if (selectedNode) selectedNode.classList.remove('selected');
-            const nn = makeNode(clipboardData.shape, { ...clipboardData });
-            selectedNode = nn;
-            nn.classList.add('selected');
+            const nn = makeNode(clipboardData.shape, {...clipboardData});
+            selectedNode = nn; nn.classList.add('selected');
           });
-
-          // Text styling
           function toggleCls(cls) {
             if (!selectedNode) return;
             const t = selectedNode.querySelector('.text');
             t.classList.toggle(cls);
             t.focus();
           }
-          document.getElementById('boldBtn').addEventListener('click',    () => toggleCls('text-bold'));
-          document.getElementById('italicBtn').addEventListener('click',  () => toggleCls('text-italic'));
-          document.getElementById('underlineBtn').addEventListener('click',() => toggleCls('text-underline'));
-
-          // Font size
+          document.getElementById('boldBtn').addEventListener('click',    ()=> toggleCls('text-bold'));
+          document.getElementById('italicBtn').addEventListener('click',  ()=> toggleCls('text-italic'));
+          document.getElementById('underlineBtn').addEventListener('click',()=> toggleCls('text-underline'));
           const MIN_FS = 8, MAX_FS = 72, STEP_FS = 2;
           function changeFS(delta) {
             if (!selectedNode) return;
@@ -491,18 +474,14 @@
             t.style.fontSize = nxt + 'px';
             instance.revalidate(selectedNode.id);
           }
-          document.getElementById('fontSizeIncreaseBtn').addEventListener('click', () => changeFS(STEP_FS));
-          document.getElementById('fontSizeDecreaseBtn').addEventListener('click', () => changeFS(-STEP_FS));
-
-          // Text align
+          document.getElementById('fontSizeIncreaseBtn').addEventListener('click', ()=> changeFS(STEP_FS));
+          document.getElementById('fontSizeDecreaseBtn').addEventListener('click', ()=> changeFS(-STEP_FS));
           ['alignLeftBtn','alignCenterBtn','alignRightBtn'].forEach((id,i) => {
             document.getElementById(id).addEventListener('click', () => {
               if (!selectedNode) return;
               selectedNode.querySelector('.text').style.textAlign = ['left','center','right'][i];
             });
           });
-
-          // Lists & links
           document.getElementById('bulletBtn').addEventListener('click', () => {
             if (!selectedNode) return;
             selectedNode.querySelector('.text').focus();
@@ -521,17 +500,13 @@
               });
             }
           });
-
-          // Zoom
           function applyZoom() {
             canvas.style.transform = `scale(${currentZoom})`;
             instance.setZoom(currentZoom);
             updateCanvasSize();
           }
-          document.getElementById('zoomIn').addEventListener('click',  () => { currentZoom *= 1.1; applyZoom(); });
-          document.getElementById('zoomOut').addEventListener('click', () => { currentZoom /= 1.1; applyZoom(); });
-
-          // Rotate
+          document.getElementById('zoomIn').addEventListener('click',  ()=> { currentZoom *= 1.1; applyZoom(); });
+          document.getElementById('zoomOut').addEventListener('click', ()=> { currentZoom /= 1.1; applyZoom(); });
           function rotateSel(delta) {
             if (!selectedNode) return;
             let a = parseInt(selectedNode.dataset.angle || 0) + delta;
@@ -539,16 +514,12 @@
             selectedNode.style.transform = `rotate(${a}deg)`;
             instance.revalidate(selectedNode.id);
           }
-          document.getElementById('rotateLeft').addEventListener('click',  () => rotateSel(-15));
-          document.getElementById('rotateRight').addEventListener('click', () => rotateSel(15));
-
-          // Color picker
-          colorPicker.addEventListener('input', () => {
+          document.getElementById('rotateLeft').addEventListener('click',  ()=> rotateSel(-15));
+          document.getElementById('rotateRight').addEventListener('click', ()=> rotateSel(15));
+          colorPicker.addEventListener('input', ()=> {
             if (selectedNode) selectedNode.style.backgroundColor = colorPicker.value;
           });
-
-          // Save
-          document.getElementById('saveBtn').addEventListener('click', () => {
+          document.getElementById('saveBtn').addEventListener('click', ()=> {
             try {
               const nodesToSave = [];
               const defBg = normalizeColor(getVar('--node-bg'));
@@ -557,8 +528,8 @@
                 const comp = normalizeColor(getComputedStyle(n).backgroundColor);
                 const c = (comp && comp !== defBg) ? comp : null;
                 const shape = n.classList.contains('circle') ? 'circle'
-                            : n.classList.contains('ellipse') ? 'ellipse'
-                            : 'rect';
+                              : n.classList.contains('ellipse') ? 'ellipse'
+                              : 'rect';
                 nodesToSave.push({
                   id: n.id,
                   shape,
@@ -595,15 +566,11 @@
               alert('Error saving OnMyMind: ' + (e.message || 'Unknown error'));
             }
           });
-
-          // Load
-          document.getElementById('loadBtn').addEventListener('click', () => fileInput.click());
-          fileInput.addEventListener('change', () => {
-            // your load logic here
+          document.getElementById('loadBtn').addEventListener('click', ()=> fileInput.click());
+          fileInput.addEventListener('change', ()=> {
+            // load logic
           });
-
-          // Export PNG
-          document.getElementById('exportPngBtn').addEventListener('click', () => {
+          document.getElementById('exportPngBtn').addEventListener('click', ()=> {
             try {
               instance.repaintEverything();
               canvas.querySelectorAll('canvas.jtk-connector').forEach(cc => {
@@ -649,9 +616,7 @@
               alert('Error exporting PNG: ' + (e.message || 'Unknown error'));
             }
           });
-
-          // Export PDF
-          document.getElementById('exportPdfBtn').addEventListener('click', () => {
+          document.getElementById('exportPdfBtn').addEventListener('click', ()=> {
             try {
               instance.repaintEverything();
               canvas.querySelectorAll('canvas.jtk-connector').forEach(cc => {
@@ -700,9 +665,7 @@
             }
           });
 
-          // ───────
-          // DELETE
-          // ───────
+          // Delete selected node
           document.addEventListener('keydown', e => {
             if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNode) {
               instance.remove(selectedNode);
@@ -711,10 +674,8 @@
               e.preventDefault();
             }
           });
-
         })();
 
-        // Initial layout
         updateCanvasSize();
       });
     } catch (err) {
