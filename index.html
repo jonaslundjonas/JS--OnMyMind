@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OnMyMind v1.1</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OnMyMind v1.2</title>
   <style>
     :root {
       --toolbar-bg: #f0f0f0;
@@ -16,9 +16,9 @@
       --selected-outline: #36f;
       --link-color: #0000ee;
       --link-visited-color: #551a8b;
-      --popup-bg: var(--toolbar-button-bg, #e0e0e0);
-      --popup-text: var(--text-color, #000);
-      --popup-border: var(--node-border, #000);
+      --popup-bg: var(--toolbar-button-bg);
+      --popup-text: var(--text-color);
+      --popup-border: var(--node-border);
     }
     body.dark {
       --toolbar-bg: #444;
@@ -29,659 +29,669 @@
       --text-color: #ddd;
       --connector-color: #9cf;
       --selected-outline: #58a;
-      --link-color: #ff9999;
-      --link-visited-color: #e68a8a;
-      --popup-bg: var(--toolbar-button-bg, #555);
-      --popup-text: var(--text-color, #ddd);
-      --popup-border: var(--node-border, #ccc);
+      --link-color: #ff4444;        /* true red for dark mode */
+      --link-visited-color: #cc3333; /* darker red for visited */
+      --popup-bg: var(--toolbar-button-bg);
+      --popup-text: var(--text-color);
+      --popup-border: var(--node-border);
     }
     body {
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
       font-family: sans-serif;
-      overflow: auto;
       background: var(--canvas-bg);
       color: var(--text-color);
       transition: background-color 0.3s, color 0.3s;
     }
     #toolbar {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
+      display: flex; flex-wrap: wrap; align-items: center;
       padding: 5px;
       background: var(--toolbar-bg);
       border-bottom: 1px solid var(--node-border);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      transition: background-color 0.3s, border-color 0.3s;
+      position: sticky; top: 0; z-index: 10;
     }
     #toolbar button,
     #toolbar input[type="color"] {
-      margin: 2px;
-      padding: 5px;
+      margin: 2px; padding: 5px;
       background: var(--toolbar-button-bg);
       color: var(--text-color);
       border: 1px solid var(--node-border);
       border-radius: 4px;
       cursor: pointer;
       font-size: 0.9em;
-      transition: background-color 0.3s, color 0.3s, border-color 0.3s;
     }
     #toolbar button:hover {
       background: var(--canvas-bg);
     }
     #toolbar input[type="color"] {
-      width: 40px;
-      height: 28px;
-      padding: 2px;
-      vertical-align: middle;
-      cursor: pointer;
+      width: 40px; height: 28px; padding: 2px;
     }
-    /* Version label aligned right */
     #versionLabel {
-      margin-left: auto;
-      padding-right: 10px;
+      margin-left: auto; padding-right: 10px;
       font-size: 0.9em;
-      color: var(--text-color);
     }
     #canvas {
       position: relative;
       background: var(--canvas-bg);
       min-height: 100vh;
       transform-origin: top left;
-      transition: background-color 0.3s;
     }
     .node {
       position: absolute;
       background: var(--node-bg);
       border: 2px solid var(--node-border);
       box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-      cursor: move;
-      overflow: visible;
-      user-select: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background-color 0.3s, border-color 0.3s;
-      z-index: 2;
+      display: flex; align-items: center; justify-content: center;
+      user-select: none; cursor: move; z-index: 2;
     }
-    .node.rect { min-width: 100px; min-height: 50px; }
-    .node.circle {
-      width: 100px; height: 100px;
-      border-radius: 50%; min-width: 50px; min-height: 50px;
-    }
-    .node.ellipse {
-      width: 150px; height: 75px;
-      border-radius: 50%; min-width: 100px; min-height: 50px;
-    }
-    .node.selected {
+    .rect    { min-width:100px; min-height:50px; }
+    .circle  { width:100px; height:100px; border-radius:50%; min-width:50px; min-height:50px; }
+    .ellipse { width:150px; height:75px; border-radius:50%; min-width:100px; min-height:50px; }
+    .image   { width:200px; height:150px; }
+    .selected {
       outline: 3px dashed var(--selected-outline);
       outline-offset: 2px;
     }
     .text {
-      position: relative;
-      width: 100%; height: 100%;
-      padding: 10px; box-sizing: border-box;
-      overflow: auto; outline: none;
-      text-align: center; color: var(--text-color);
-      transition: color 0.3s; z-index: 3;
+      width:100%; height:100%; padding:10px;
+      box-sizing: border-box; overflow:auto; outline:none;
+      text-align:center; color:var(--text-color);
     }
     .text a {
-      color: var(--link-color); text-decoration: underline;
-      transition: color 0.3s; cursor: pointer;
+      color: var(--link-color);
+      text-decoration: underline;
     }
-    .text a:visited { color: var(--link-visited-color); }
-    .text-bold { font-weight: bold; }
-    .text-italic { font-style: italic; }
+    .text a:visited {
+      color: var(--link-visited-color);
+    }
+    .text-bold      { font-weight: bold; }
+    .text-italic    { font-style: italic; }
     .text-underline { text-decoration: underline; }
     .resize-handle {
-      position: absolute; width: 10px; height: 10px;
-      background-color: var(--selected-outline, #36f);
-      border: 1px solid var(--node-border, #000);
-      bottom: -5px; right: -5px; cursor: nwse-resize;
-      display: none; z-index: 5;
+      position:absolute; width:10px; height:10px;
+      background:var(--selected-outline);
+      border:1px solid var(--node-border);
+      bottom:-5px; right:-5px;
+      cursor:nwse-resize; display:none; z-index:5;
     }
-    .node.selected .resize-handle { display: block; }
+    .selected .resize-handle {
+      display: block;
+    }
     #linkPopup {
       position: absolute; display: none;
-      background-color: var(--popup-bg); color: var(--popup-text);
+      background: var(--popup-bg); color: var(--popup-text);
       border: 1px solid var(--popup-border);
       padding: 3px 8px; border-radius: 4px;
       font-size: 0.8em; white-space: nowrap;
-      z-index: 1000; pointer-events: none;
+      pointer-events: none; z-index: 1000;
     }
     canvas.jtk-connector {
-      position: absolute !important; z-index: 1; pointer-events: auto;
+      position: absolute !important;
+      pointer-events: auto;
+      z-index: 1;
     }
-    /* Footer credit */
     #footer {
-      position: fixed;
-      bottom: 5px;
-      right: 10px;
-      font-size: 0.8em;
-      color: var(--text-color);
-      opacity: 0.7;
+      position: fixed; bottom:5px; right:10px;
+      font-size: 0.8em; opacity: 0.7;
     }
   </style>
 </head>
 <body>
   <div id="toolbar">
-    <button id="themeToggle" title="Toggle Dark/Light Theme">Toggle Theme</button>
-    <button id="addRect" title="Add Rectangle Node">Rectangle</button>
-    <button id="addCircle" title="Add Circle Node">Circle</button>
-    <button id="addEllipse" title="Add Ellipse Node">Ellipse</button>
-    <button id="copyBtn" title="Copy Selected Node">Copy</button>
-    <button id="pasteBtn" title="Paste Node">Paste</button>
-    <button id="boldBtn" title="Toggle Bold">B</button>
-    <button id="italicBtn" title="Toggle Italic">I</button>
-    <button id="underlineBtn" title="Toggle Underline">U</button>
-    <button id="fontSizeDecreaseBtn" title="Decrease Font Size">-A</button>
-    <button id="fontSizeIncreaseBtn" title="Increase Font Size">+A</button>
-    <button id="bulletBtn" title="Insert Bullet List">• List</button>
-    <button id="alignLeftBtn" title="Align Text Left">Left</button>
-    <button id="alignCenterBtn" title="Align Text Center">Center</button>
-    <button id="alignRightBtn" title="Align Text Right">Right</button>
-    <button id="linkBtn" title="Create Link">Link</button>
-    <button id="zoomIn" title="Zoom In">+</button>
-    <button id="zoomOut" title="Zoom Out">-</button>
-    <button id="rotateLeft" title="Rotate Selected Node Left">Rotate L</button>
-    <button id="rotateRight" title="Rotate Selected Node Right">Rotate R</button>
-    <input id="colorPicker" type="color" title="Change Selected Node Background"/>
-    <button id="saveBtn" title="Save OnMyMind (.omm)">Save</button>
-    <button id="loadBtn" title="Load OnMyMind (.omm)">Load</button>
-    <button id="exportPngBtn" title="Export as PNG">Export PNG</button>
-    <button id="exportPdfBtn" title="Export as PDF">Export PDF</button>
-    <input id="fileInput" type="file" accept=".omm" style="display:none;"/>
-    <div id="versionLabel">OnMyMind v1.1</div>
+    <button id="themeToggle">Toggle Theme</button>
+    <button id="addRect">Rectangle</button>
+    <button id="addCircle">Circle</button>
+    <button id="addEllipse">Ellipse</button>
+    <button id="importImgBtn">Import Image</button>
+    <button id="copyBtn">Copy</button>
+    <button id="pasteBtn">Paste</button>
+    <button id="boldBtn">B</button>
+    <button id="italicBtn">I</button>
+    <button id="underlineBtn">U</button>
+    <button id="fontSizeDecreaseBtn">-A</button>
+    <button id="fontSizeIncreaseBtn">+A</button>
+    <button id="bulletBtn">• List</button>
+    <button id="alignLeftBtn">Left</button>
+    <button id="alignCenterBtn">Center</button>
+    <button id="alignRightBtn">Right</button>
+    <button id="linkBtn">Link</button>
+    <button id="zoomIn">+</button>
+    <button id="zoomOut">-</button>
+    <button id="rotateLeft">Rotate L</button>
+    <button id="rotateRight">Rotate R</button>
+    <input id="colorPicker" type="color"/>
+    <button id="saveBtn">Save</button>
+    <button id="loadBtn">Load</button>
+    <button id="exportPngBtn">Export PNG</button>
+    <button id="exportPdfBtn">Export PDF</button>
+    <input id="fileInput" type="file" accept=".omm" style="display:none"/>
+    <input id="imageInput" type="file" accept="image/png,image/jpeg" style="display:none"/>
+    <div id="versionLabel">OnMyMind v1.2</div>
   </div>
 
   <div id="canvas"></div>
   <div id="linkPopup"></div>
-  <div id="footer">Created by Jonas Lund 2025</div>
+  <div id="footer">Created by Jonas Lund 2025</div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
   <script>
-    try {
-      jsPlumb.ready(function() {
-        console.log("--- jsPlumb Ready ---");
+    jsPlumb.ready(function() {
+      const canvas      = document.getElementById('canvas');
+      const linkPopup   = document.getElementById('linkPopup');
+      const fileInput   = document.getElementById('fileInput');
+      const imageInput  = document.getElementById('imageInput');
+      const themeToggle = document.getElementById('themeToggle');
+      const colorPicker = document.getElementById('colorPicker');
+      let currentZoom=1, selectedNode=null, offsetCount=0, clipboardData=null;
 
-        const canvas = document.getElementById('canvas');
-        const colorPicker = document.getElementById('colorPicker');
-        const themeToggle = document.getElementById('themeToggle');
-        const fileInput = document.getElementById('fileInput');
-        const linkPopup = document.getElementById('linkPopup');
-        let currentZoom = 1, selectedNode = null, offsetCount = 0, clipboardData = null;
+      // Prevent toolbar buttons stealing focus
+      document.querySelectorAll('#toolbar button')
+              .forEach(b=>b.addEventListener('mousedown', e=>e.preventDefault()));
 
-        if (!canvas) throw new Error("Canvas element not found!");
+      const getVar = n=>getComputedStyle(document.body).getPropertyValue(n).trim();
+      const normalizeColor = str=> {
+        if(!str||str==='transparent'||str==='rgba(0, 0, 0, 0)') return null;
+        if(/^#[0-9A-Fa-f]{3}$/.test(str))
+          return `#${str[1]}${str[1]}${str[2]}${str[2]}${str[3]}${str[3]}`.toLowerCase();
+        if(/^#[0-9A-Fa-f]{6}$/.test(str)) return str.toLowerCase();
+        try {
+          const ctx = document.createElement('canvas').getContext('2d');
+          ctx.fillStyle = str;
+          return ctx.fillStyle;
+        } catch {
+          return str;
+        }
+      };
 
-        document.querySelectorAll('#toolbar button').forEach(b =>
-          b.addEventListener('mousedown', e => e.preventDefault())
-        );
+      const instance = jsPlumb.getInstance({
+        Connector: ['Bezier',{curviness:50}],
+        Endpoint: ['Blank',{}],
+        PaintStyle: { stroke:getVar('--connector-color'), strokeWidth:2 },
+        ConnectionOverlays: [['Arrow',{ width:10, length:10, location:1 }]],
+        Container: 'canvas',
+        RenderMode: 'canvas'
+      });
 
-        const getVar = name => getComputedStyle(document.body).getPropertyValue(name).trim();
-        const normalizeColor = str => {
-          if (!str || str === 'transparent' || str === 'rgba(0, 0, 0, 0)') return null;
-          if (/^#[0-9a-fA-F]{3}$/.test(str))
-            return `#${str[1]}${str[1]}${str[2]}${str[2]}${str[3]}${str[3]}`.toLowerCase();
-          if (/^#[0-9a-fA-F]{6}$/.test(str)) return str.toLowerCase();
-          try {
-            const ctx = document.createElement('canvas').getContext('2d');
-            ctx.fillStyle = str;
-            const hex = ctx.fillStyle.toLowerCase();
-            if ((hex === '#000000' || hex === '#ffffff') &&
-                !/(black|white|#000|#fff|rgb\(0,\s*0,\s*0\)|rgb\(255,\s*255,\s*255\))/i.test(str)) {
-              return str;
-            }
-            return hex;
-          } catch {
-            return str;
+      // Theme toggle
+      themeToggle.onclick = ()=>{
+        document.body.classList.toggle('dark');
+        const c = getVar('--connector-color');
+        instance.importDefaults({ PaintStyle:{ stroke:c, strokeWidth:2 } });
+        instance.getAllConnections().forEach(cn=>cn.setPaintStyle({ stroke:c, strokeWidth:2 }));
+      };
+
+      // Resize canvas to fit
+      function updateCanvasSize(){
+        let mx=0,my=0;
+        document.querySelectorAll('.node').forEach(n=>{
+          mx = Math.max(mx, n.offsetLeft + n.offsetWidth);
+          my = Math.max(my, n.offsetTop  + n.offsetHeight);
+        });
+        canvas.style.width  = (mx + 200) + 'px';
+        canvas.style.height = (my + 200) + 'px';
+      }
+
+      // Resizing handle logic
+      function setupResizing(nodeEl, handleEl){
+        let sx, sy, sw, sh;
+        const isImg  = nodeEl.classList.contains('image');
+        const isCirc = nodeEl.classList.contains('circle');
+        const minW   = isImg?50:(isCirc?50:100);
+        const minH   = isImg?50:50;
+
+        function doDrag(e){
+          e.preventDefault();
+          let nw = sw + (e.clientX - sx)/currentZoom;
+          let nh = sh + (e.clientY - sy)/currentZoom;
+          nw = Math.max(minW, nw);
+          nh = Math.max(minH, nh);
+          if(isImg){
+            nodeEl.style.width  = nw + 'px';
+            nodeEl.style.height = nh + 'px';
+          } else if(isCirc){
+            const s = Math.max(nw, nh);
+            nodeEl.style.width  = nodeEl.style.height = s + 'px';
+          } else {
+            nodeEl.style.width  = nw + 'px';
+            nodeEl.style.height = nh + 'px';
           }
+          instance.revalidate(nodeEl.id);
+        }
+        function stopDrag(){
+          document.documentElement.removeEventListener('mousemove', doDrag);
+          document.documentElement.removeEventListener('mouseup', stopDrag);
+          document.documentElement.removeEventListener('mouseleave', stopDrag);
+          instance.revalidate(nodeEl.id);
+          updateCanvasSize();
+        }
+        handleEl.onmousedown = e=>{
+          e.preventDefault(); e.stopPropagation();
+          sx = e.clientX; sy = e.clientY;
+          sw = nodeEl.offsetWidth; sh = nodeEl.offsetHeight;
+          document.documentElement.addEventListener('mousemove', doDrag);
+          document.documentElement.addEventListener('mouseup', stopDrag);
+          document.documentElement.addEventListener('mouseleave', stopDrag);
         };
+      }
 
-        const instance = jsPlumb.getInstance({
-          Connector: ['Bezier',{curviness:50}],
-          Endpoint: ['Blank',{}],
-          PaintStyle: { stroke: getVar('--connector-color'), strokeWidth: 2 },
-          ConnectionOverlays: [['Arrow',{ width:10, length:10, location:1 }]],
-          Container: 'canvas',
-          RenderMode: 'canvas'
-        });
+      // Node factory
+      function makeNode(type, data={}){
+        const id = data.id || 'node_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+        const node = document.createElement('div');
+        node.className = 'node ' + type;
+        node.id = id;
+        // position
+        if(data.left!==undefined) node.style.left = data.left;
+        else node.style.left = (50 + offsetCount*20) + 'px';
+        if(data.top!==undefined) node.style.top = data.top;
+        else node.style.top = (50 + offsetCount*20) + 'px';
+        offsetCount++;
+        // angle
+        node.dataset.angle = data.angle || 0;
+        node.style.transform = `rotate(${node.dataset.angle}deg)`;
+        // size
+        if(data.width)  node.style.width  = data.width;
+        if(data.height) node.style.height = data.height;
 
-        themeToggle.addEventListener('click', () => {
-          document.body.classList.toggle('dark');
-          const c = getVar('--connector-color');
-          instance.importDefaults({ PaintStyle: { stroke: c, strokeWidth: 2 } });
-          instance.getAllConnections().forEach(conn =>
-            conn.setPaintStyle({ stroke: c, strokeWidth: 2 })
-          );
-        });
-
-        function updateCanvasSize() {
-          let maxX = 0, maxY = 0;
-          document.querySelectorAll('.node').forEach(n => {
-            maxX = Math.max(maxX, n.offsetLeft + n.offsetWidth);
-            maxY = Math.max(maxY, n.offsetTop + n.offsetHeight);
-          });
-          canvas.style.width = (maxX + 200) + 'px';
-          canvas.style.height = (maxY + 200) + 'px';
-        }
-
-        function setupResizing(nodeEl, handleEl) {
-          let startX, startY, startW, startH;
-          const isCircle = nodeEl.classList.contains('circle');
-          const minW = isCircle ? 50 : 100;
-          const minH = isCircle ? 50 : 50;
-
-          function doDrag(e) {
-            e.preventDefault();
-            let nw = startW + (e.clientX - startX) / currentZoom;
-            let nh = startH + (e.clientY - startY) / currentZoom;
-            nw = Math.max(minW, nw);
-            nh = Math.max(minH, nh);
-            if (isCircle) {
-              const s = Math.max(nw, nh);
-              nodeEl.style.width = s + 'px';
-              nodeEl.style.height = s + 'px';
-            } else {
-              nodeEl.style.width = nw + 'px';
-              nodeEl.style.height = nh + 'px';
-            }
-            instance.revalidate(nodeEl.id);
-          }
-
-          function stopDrag() {
-            document.documentElement.removeEventListener('mousemove', doDrag);
-            document.documentElement.removeEventListener('mouseup', stopDrag);
-            document.documentElement.removeEventListener('mouseleave', stopDrag);
-            instance.revalidate(nodeEl.id);
-            updateCanvasSize();
-          }
-
-          handleEl.addEventListener('mousedown', e => {
-            e.preventDefault();
-            e.stopPropagation();
-            startX = e.clientX; startY = e.clientY;
-            startW = nodeEl.offsetWidth; startH = nodeEl.offsetHeight;
-            document.documentElement.addEventListener('mousemove', doDrag);
-            document.documentElement.addEventListener('mouseup', stopDrag);
-            document.documentElement.addEventListener('mouseleave', stopDrag);
-          });
-        }
-
-        function makeNode(shape, data = {}) {
-          const id = data.id || 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
-          const node = document.createElement('div');
-          node.className = 'node ' + shape;
-          node.id = id;
-
-          const base = 50 + offsetCount * 20; offsetCount++;
-          node.style.left = (data.left  || (base + window.scrollX / currentZoom)) + 'px';
-          node.style.top  = (data.top   || (base + window.scrollY / currentZoom)) + 'px';
-          node.dataset.angle = data.angle || 0;
-          node.style.transform = `rotate(${node.dataset.angle}deg)`;
-
-          if (data.width)  node.style.width  = data.width;
-          if (data.height) node.style.height = data.height;
-
+        if(type === 'image'){
+          const img = document.createElement('img');
+          img.src = data.imageData;
+          img.style.width='100%'; img.style.height='100%'; img.style.objectFit='contain';
+          node.appendChild(img);
+        } else {
           const text = document.createElement('div');
           text.className = 'text';
           text.contentEditable = true;
           text.innerHTML = data.text || 'Node';
-          if (data.color) node.style.backgroundColor = data.color;
-          if (data.textStyles) {
-            if (data.textStyles.bold)      text.classList.add('text-bold');
-            if (data.textStyles.italic)    text.classList.add('text-italic');
-            if (data.textStyles.underline) text.classList.add('text-underline');
-            if (data.textStyles.textAlign) text.style.textAlign = data.textStyles.textAlign;
-            if (data.textStyles.fontSize)  text.style.fontSize = data.textStyles.fontSize;
+          if(data.color) node.style.backgroundColor = data.color;
+          if(data.textStyles){
+            if(data.textStyles.bold)      text.classList.add('text-bold');
+            if(data.textStyles.italic)    text.classList.add('text-italic');
+            if(data.textStyles.underline) text.classList.add('text-underline');
+            if(data.textStyles.textAlign) text.style.textAlign = data.textStyles.textAlign;
+            if(data.textStyles.fontSize)  text.style.fontSize   = data.textStyles.fontSize;
           }
-
           node.appendChild(text);
-          const handle = document.createElement('div');
-          handle.className = 'resize-handle';
-          node.appendChild(handle);
-          setupResizing(node, handle);
-          canvas.appendChild(node);
-
-          text.addEventListener('blur', () => {
+          text.onblur = ()=>{
             updateCanvasSize();
             instance.revalidate(node.id);
-          });
-
-          node.addEventListener('click', e => {
-            const a = e.target.closest('a');
-            const isHandle = e.target.classList.contains('resize-handle');
-            if (a) {
-              e.preventDefault();
-              if (e.shiftKey) window.open(a.href, '_blank', 'noopener');
-              e.stopPropagation();
-              return;
-            }
-            if (isHandle) { e.stopPropagation(); return; }
-            if (selectedNode && selectedNode !== node) selectedNode.classList.remove('selected');
-            selectedNode = node;
-            node.classList.add('selected');
-            try {
-              const bg = getComputedStyle(node).backgroundColor;
-              const hx = normalizeColor(bg);
-              if (/^#[0-9a-fA-F]{6}$/.test(hx)) colorPicker.value = hx;
-              else colorPicker.value = normalizeColor(getVar('--node-bg')) || '#ffffff';
-            } catch {}
-            e.stopPropagation();
-          });
-
-          instance.draggable(node, {
-            filter: ".resize-handle, a",
-            start: () => {},
-            stop: params => {
-              params.el.style.left = params.pos[0] + 'px';
-              params.el.style.top  = params.pos[1] + 'px';
-              updateCanvasSize();
-            }
-          });
-          const anchors = ['Top','Right','Bottom','Left'];
-          instance.makeSource(node, {
-            filter: ".text",
-            anchor: anchors,
-            connectorStyle: { stroke: getVar('--connector-color'), strokeWidth: 2 },
-            maxConnections: -1
-          });
-          instance.makeTarget(node, { anchor: anchors, maxConnections: -1, allowLoopback: false });
-
-          return node;
+          };
         }
 
-        instance.registerConnectionType('basic', { anchors: ['Top','Right','Bottom','Left'] });
-        instance.bind('connection', () => updateCanvasSize());
-        instance.bind('dblclick', (conn, evt) => {
-          instance.deleteConnection(conn);
-          evt.preventDefault();
-        });
+        const handle = document.createElement('div');
+        handle.className = 'resize-handle';
+        node.appendChild(handle);
+        setupResizing(node, handle);
+        canvas.appendChild(node);
 
-        canvas.addEventListener('mouseover', e => {
+        node.onclick = e=>{
           const a = e.target.closest('a');
-          if (a && a.closest('.node .text')) {
-            linkPopup.textContent = 'Shift+Click to Go to Link';
-            linkPopup.style.left = e.pageX + 10 + 'px';
-            linkPopup.style.top  = e.pageY + 10 + 'px';
-            linkPopup.style.display = 'block';
+          if(a){
+            e.preventDefault();
+            if(e.shiftKey) window.open(a.href,'_blank');
+            e.stopPropagation();
+            return;
+          }
+          if(e.target===handle){
+            e.stopPropagation();
+            return;
+          }
+          if(selectedNode && selectedNode!==node) selectedNode.classList.remove('selected');
+          selectedNode = node;
+          node.classList.add('selected');
+          e.stopPropagation();
+        };
+
+        instance.draggable(node,{
+          filter: ".resize-handle, a",
+          stop: p=>{
+            p.el.style.left = p.pos[0] + 'px';
+            p.el.style.top  = p.pos[1] + 'px';
+            updateCanvasSize();
           }
         });
-        canvas.addEventListener('mouseout', e => {
-          if (e.target.closest('a')) linkPopup.style.display = 'none';
+        const anchors = ['Top','Right','Bottom','Left'];
+        instance.makeSource(node,{
+          filter: type==='image'? 'img': '.text',
+          anchor: anchors,
+          connectorStyle: { stroke:getVar('--connector-color'), strokeWidth:2 },
+          maxConnections: -1
         });
-        canvas.addEventListener('mouseleave', () => linkPopup.style.display = 'none');
-        canvas.addEventListener('click', e => {
-          if (e.target === canvas && selectedNode) {
-            selectedNode.classList.remove('selected');
-            selectedNode = null;
-          }
+        instance.makeTarget(node,{
+          anchor: anchors,
+          maxConnections: -1,
+          allowLoopback: false
         });
 
-        (function setupToolbar() {
-          ['Rect','Circle','Ellipse'].forEach(s => {
-            document.getElementById('add'+s)
-              .addEventListener('click', ()=> makeNode(s.toLowerCase()));
-          });
-          document.getElementById('copyBtn').addEventListener('click', () => {
-            if (!selectedNode) { clipboardData = null; return; }
-            const t = selectedNode.querySelector('.text');
-            const defBg = normalizeColor(getVar('--node-bg'));
-            const compBg = normalizeColor(getComputedStyle(selectedNode).backgroundColor);
-            clipboardData = {
-              shape: selectedNode.classList.contains('circle') ? 'circle'
-                    : selectedNode.classList.contains('ellipse') ? 'ellipse'
-                    : 'rect',
-              width:  selectedNode.style.width  || getComputedStyle(selectedNode).width,
-              height: selectedNode.style.height || getComputedStyle(selectedNode).height,
-              text:   t.innerHTML,
-              angle:  selectedNode.dataset.angle || 0,
-              color:  (compBg && compBg !== defBg) ? compBg : null,
-              textStyles: {
+        return node;
+      }
+
+      instance.bind('connection', ()=> updateCanvasSize());
+      instance.bind('dblclick', (c,e)=>{ instance.deleteConnection(c); e.preventDefault(); });
+
+      // Link popup
+      canvas.onmouseover = e=>{
+        const a = e.target.closest('a');
+        if(a && a.closest('.node')){
+          linkPopup.textContent = 'Shift+Click to Go to Link';
+          linkPopup.style.left = e.pageX + 10 + 'px';
+          linkPopup.style.top  = e.pageY + 10 + 'px';
+          linkPopup.style.display = 'block';
+        }
+      };
+      canvas.onmouseout = e=>{
+        if(e.target.closest('a')) linkPopup.style.display = 'none';
+      };
+      canvas.onmouseleave = ()=> linkPopup.style.display = 'none';
+      canvas.onclick = e=>{
+        if(e.target===canvas && selectedNode){
+          selectedNode.classList.remove('selected');
+          selectedNode = null;
+        }
+      };
+
+      // Toolbar
+      document.getElementById('addRect').onclick    = ()=> makeNode('rect');
+      document.getElementById('addCircle').onclick  = ()=> makeNode('circle');
+      document.getElementById('addEllipse').onclick = ()=> makeNode('ellipse');
+
+      // Import Image
+      document.getElementById('importImgBtn').onclick = ()=> imageInput.click();
+      imageInput.onchange = ()=>{
+        const f = imageInput.files[0];
+        if(!f) return;
+        const r = new FileReader();
+        r.onload = e=> makeNode('image',{ imageData:e.target.result });
+        r.readAsDataURL(f);
+        imageInput.value = '';
+      };
+
+      // Copy / Paste
+      document.getElementById('copyBtn').onclick = ()=>{
+        if(!selectedNode){ clipboardData=null; return; }
+        const isImg = selectedNode.classList.contains('image');
+        if(isImg){
+          const img = selectedNode.querySelector('img');
+          clipboardData = {
+            shape:'image',
+            imageData:img.src,
+            width:selectedNode.style.width,
+            height:selectedNode.style.height,
+            angle:selectedNode.dataset.angle
+          };
+        } else {
+          const t = selectedNode.querySelector('.text');
+          const def=normalizeColor(getVar('--node-bg'));
+          const comp=normalizeColor(getComputedStyle(selectedNode).backgroundColor);
+          clipboardData = {
+            shape: selectedNode.classList.contains('circle')?'circle'
+                 : selectedNode.classList.contains('ellipse')?'ellipse':'rect',
+            width:selectedNode.style.width,
+            height:selectedNode.style.height,
+            text:  t.innerHTML,
+            color: (comp&&comp!==def)?comp:null,
+            textStyles:{
+              bold:     t.classList.contains('text-bold'),
+              italic:   t.classList.contains('text-italic'),
+              underline:t.classList.contains('text-underline'),
+              textAlign:t.style.textAlign,
+              fontSize: t.style.fontSize
+            },
+            angle:selectedNode.dataset.angle
+          };
+        }
+      };
+      document.getElementById('pasteBtn').onclick = ()=>{
+        if(!clipboardData) return;
+        if(selectedNode) selectedNode.classList.remove('selected');
+        makeNode(clipboardData.shape, clipboardData);
+      };
+
+      // Text formatting
+      function toggleCls(c){ if(!selectedNode) return; const t=selectedNode.querySelector('.text'); t.classList.toggle(c); t.focus(); }
+      document.getElementById('boldBtn').onclick      = ()=> toggleCls('text-bold');
+      document.getElementById('italicBtn').onclick    = ()=> toggleCls('text-italic');
+      document.getElementById('underlineBtn').onclick = ()=> toggleCls('text-underline');
+      const MINFS=8, MAXFS=72, STEPFS=2;
+      function changeFS(d){
+        if(!selectedNode) return;
+        const t = selectedNode.querySelector('.text');
+        let cur = parseFloat(t.style.fontSize)|| parseFloat(getComputedStyle(t).fontSize)||16;
+        let nxt = Math.max(MINFS, Math.min(MAXFS,cur+d));
+        t.style.fontSize = nxt+'px';
+        instance.revalidate(selectedNode.id);
+      }
+      document.getElementById('fontSizeIncreaseBtn').onclick = ()=> changeFS(STEPFS);
+      document.getElementById('fontSizeDecreaseBtn').onclick = ()=> changeFS(-STEPFS);
+
+      ['alignLeftBtn','alignCenterBtn','alignRightBtn'].forEach((id,i)=>{
+        document.getElementById(id).onclick = ()=>{
+          if(!selectedNode) return;
+          selectedNode.querySelector('.text').style.textAlign = ['left','center','right'][i];
+        };
+      });
+      document.getElementById('bulletBtn').onclick = ()=>{
+        if(!selectedNode) return;
+        const t = selectedNode.querySelector('.text');
+        t.focus(); document.execCommand('insertUnorderedList');
+      };
+      document.getElementById('linkBtn').onclick = ()=>{
+        if(!selectedNode) return;
+        const t = selectedNode.querySelector('.text');
+        t.focus();
+        const url = prompt('URL:','https://');
+        if(url){
+          document.execCommand('createLink',false,url);
+          t.querySelectorAll('a').forEach(a=>{a.target='_blank';a.rel='noopener';});
+        }
+      };
+
+      // Zoom / Rotate
+      function applyZoom(){
+        canvas.style.transform = `scale(${currentZoom})`;
+        instance.setZoom(currentZoom);
+        updateCanvasSize();
+      }
+      document.getElementById('zoomIn').onclick  = ()=>{ currentZoom*=1.1; applyZoom(); };
+      document.getElementById('zoomOut').onclick = ()=>{ currentZoom/=1.1; applyZoom(); };
+      function rotateSel(d){
+        if(!selectedNode) return;
+        let a = parseInt(selectedNode.dataset.angle||0) + d;
+        selectedNode.dataset.angle = a;
+        selectedNode.style.transform = `rotate(${a}deg)`;
+        instance.revalidate(selectedNode.id);
+      }
+      document.getElementById('rotateLeft').onclick  = ()=> rotateSel(-15);
+      document.getElementById('rotateRight').onclick = ()=> rotateSel(15);
+
+      // Color picker
+      colorPicker.oninput = ()=>{ if(selectedNode) selectedNode.style.backgroundColor = colorPicker.value; };
+
+      // Save
+      document.getElementById('saveBtn').onclick = ()=>{
+        try {
+          const nodesToSave = [];
+          document.querySelectorAll('.node').forEach(n=>{
+            const isImg = n.classList.contains('image');
+            const base = {
+              id: n.id,
+              left: n.style.left,
+              top:  n.style.top,
+              width:  n.style.width  || getComputedStyle(n).width,
+              height: n.style.height || getComputedStyle(n).height,
+              angle:  n.dataset.angle || 0
+            };
+            if(isImg){
+              base.type = 'image';
+              base.imageData = n.querySelector('img').src;
+            } else {
+              const t = n.querySelector('.text');
+              const def= normalizeColor(getVar('--node-bg'));
+              const comp= normalizeColor(getComputedStyle(n).backgroundColor);
+              base.type = n.classList.contains('circle')?'circle'
+                        : n.classList.contains('ellipse')?'ellipse':'rect';
+              base.text = t.innerHTML;
+              base.color= (comp&&comp!==def)?comp:null;
+              base.textStyles = {
                 bold:      t.classList.contains('text-bold'),
                 italic:    t.classList.contains('text-italic'),
                 underline: t.classList.contains('text-underline'),
-                textAlign: t.style.textAlign || 'center',
-                fontSize:  t.style.fontSize  || null
-              }
-            };
-          });
-          document.getElementById('pasteBtn').addEventListener('click', () => {
-            if (!clipboardData) return;
-            if (selectedNode) selectedNode.classList.remove('selected');
-            const nn = makeNode(clipboardData.shape, {...clipboardData});
-            selectedNode = nn; nn.classList.add('selected');
-          });
-          function toggleCls(cls) {
-            if (!selectedNode) return;
-            const t = selectedNode.querySelector('.text');
-            t.classList.toggle(cls);
-            t.focus();
-          }
-          document.getElementById('boldBtn').addEventListener('click',    ()=> toggleCls('text-bold'));
-          document.getElementById('italicBtn').addEventListener('click',  ()=> toggleCls('text-italic'));
-          document.getElementById('underlineBtn').addEventListener('click',()=> toggleCls('text-underline'));
-          const MIN_FS = 8, MAX_FS = 72, STEP_FS = 2;
-          function changeFS(delta) {
-            if (!selectedNode) return;
-            const t = selectedNode.querySelector('.text');
-            let cur = parseFloat(t.style.fontSize) || parseFloat(getComputedStyle(t).fontSize) || 16;
-            let nxt = Math.max(MIN_FS, Math.min(MAX_FS, cur + delta));
-            t.style.fontSize = nxt + 'px';
-            instance.revalidate(selectedNode.id);
-          }
-          document.getElementById('fontSizeIncreaseBtn').addEventListener('click', ()=> changeFS(STEP_FS));
-          document.getElementById('fontSizeDecreaseBtn').addEventListener('click', ()=> changeFS(-STEP_FS));
-          ['alignLeftBtn','alignCenterBtn','alignRightBtn'].forEach((id,i) => {
-            document.getElementById(id).addEventListener('click', () => {
-              if (!selectedNode) return;
-              selectedNode.querySelector('.text').style.textAlign = ['left','center','right'][i];
-            });
-          });
-          document.getElementById('bulletBtn').addEventListener('click', () => {
-            if (!selectedNode) return;
-            selectedNode.querySelector('.text').focus();
-            document.execCommand('insertUnorderedList');
-          });
-          document.getElementById('linkBtn').addEventListener('click', () => {
-            if (!selectedNode) return;
-            const t = selectedNode.querySelector('.text');
-            t.focus();
-            const url = prompt('URL:','https://');
-            if (url) {
-              document.execCommand('createLink', false, url);
-              t.querySelectorAll('a').forEach(a => {
-                a.setAttribute('target','_blank');
-                a.setAttribute('rel','noopener noreferrer');
-              });
+                textAlign: t.style.textAlign,
+                fontSize:  t.style.fontSize
+              };
             }
+            nodesToSave.push(base);
           });
-          function applyZoom() {
-            canvas.style.transform = `scale(${currentZoom})`;
-            instance.setZoom(currentZoom);
-            updateCanvasSize();
-          }
-          document.getElementById('zoomIn').addEventListener('click',  ()=> { currentZoom *= 1.1; applyZoom(); });
-          document.getElementById('zoomOut').addEventListener('click', ()=> { currentZoom /= 1.1; applyZoom(); });
-          function rotateSel(delta) {
-            if (!selectedNode) return;
-            let a = parseInt(selectedNode.dataset.angle || 0) + delta;
-            selectedNode.dataset.angle = a;
-            selectedNode.style.transform = `rotate(${a}deg)`;
-            instance.revalidate(selectedNode.id);
-          }
-          document.getElementById('rotateLeft').addEventListener('click',  ()=> rotateSel(-15));
-          document.getElementById('rotateRight').addEventListener('click', ()=> rotateSel(15));
-          colorPicker.addEventListener('input', ()=> {
-            if (selectedNode) selectedNode.style.backgroundColor = colorPicker.value;
-          });
-          document.getElementById('saveBtn').addEventListener('click', ()=> {
-            try {
-              const nodesToSave = [];
-              const defBg = normalizeColor(getVar('--node-bg'));
-              document.querySelectorAll('.node').forEach(n => {
-                const t = n.querySelector('.text');
-                const comp = normalizeColor(getComputedStyle(n).backgroundColor);
-                const c = (comp && comp !== defBg) ? comp : null;
-                const shape = n.classList.contains('circle') ? 'circle'
-                              : n.classList.contains('ellipse') ? 'ellipse'
-                              : 'rect';
-                nodesToSave.push({
-                  id: n.id,
-                  shape,
-                  left: n.style.left,
-                  top: n.style.top,
-                  width: n.style.width || getComputedStyle(n).width,
-                  height: n.style.height || getComputedStyle(n).height,
-                  text: t.innerHTML,
-                  angle: n.dataset.angle || 0,
-                  color: c,
-                  textStyles: {
-                    bold:      t.classList.contains('text-bold'),
-                    italic:    t.classList.contains('text-italic'),
-                    underline: t.classList.contains('text-underline'),
-                    textAlign: t.style.textAlign || 'center',
-                    fontSize:  t.style.fontSize || null
-                  }
-                });
-              });
-              const conns = instance.getAllConnections().map(c => ({
-                source: c.source.id,
-                target: c.target.id
-              }));
-              const dataToSave = { nodes: nodesToSave, connections: conns };
-              const js = JSON.stringify(dataToSave, null, 2);
-              const blob = new Blob([js], { type: 'application/json' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url; a.download = 'onmymind.omm';
-              document.body.appendChild(a); a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-            } catch (e) {
-              alert('Error saving OnMyMind: ' + (e.message || 'Unknown error'));
-            }
-          });
-          document.getElementById('loadBtn').addEventListener('click', ()=> fileInput.click());
-          fileInput.addEventListener('change', ()=> {
-            // load logic
-          });
-          document.getElementById('exportPngBtn').addEventListener('click', ()=> {
-            try {
-              instance.repaintEverything();
-              canvas.querySelectorAll('canvas.jtk-connector').forEach(cc => {
-                cc.width = canvas.scrollWidth;
-                cc.height = canvas.scrollHeight;
-                cc.style.width = canvas.scrollWidth + 'px';
-                cc.style.height = canvas.scrollHeight + 'px';
-              });
-              if (selectedNode) selectedNode.classList.remove('selected');
-              const oldX = window.scrollX, oldY = window.scrollY;
-              window.scrollTo(0, 0);
-              setTimeout(() => {
-                html2canvas(canvas, {
-                  scale: 1,
-                  width: canvas.scrollWidth,
-                  height: canvas.scrollHeight,
-                  windowWidth: canvas.scrollWidth,
-                  windowHeight: canvas.scrollHeight,
-                  scrollX: 0,
-                  scrollY: 0,
-                  useCORS: true,
-                  allowTaint: true,
-                  foreignObjectRendering: true,
-                  backgroundColor: getVar('--canvas-bg')
-                }).then(cEl => {
-                  cEl.toBlob(blob => {
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = 'onmymind.png';
-                    document.body.appendChild(a); a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(a.href);
-                    if (selectedNode) selectedNode.classList.add('selected');
-                    window.scrollTo(oldX, oldY);
-                  });
-                }).catch(err => {
-                  alert('Error exporting PNG: ' + (err.message || 'Unknown error'));
-                  if (selectedNode) selectedNode.classList.add('selected');
-                  window.scrollTo(oldX, oldY);
-                });
-              }, 200);
-            } catch (e) {
-              alert('Error exporting PNG: ' + (e.message || 'Unknown error'));
-            }
-          });
-          document.getElementById('exportPdfBtn').addEventListener('click', ()=> {
-            try {
-              instance.repaintEverything();
-              canvas.querySelectorAll('canvas.jtk-connector').forEach(cc => {
-                cc.width = canvas.scrollWidth;
-                cc.height = canvas.scrollHeight;
-                cc.style.width = canvas.scrollWidth + 'px';
-                cc.style.height = canvas.scrollHeight + 'px';
-              });
-              if (selectedNode) selectedNode.classList.remove('selected');
-              const oldX = window.scrollX, oldY = window.scrollY;
-              window.scrollTo(0, 0);
-              setTimeout(() => {
-                html2canvas(canvas, {
-                  scale: 1,
-                  width: canvas.scrollWidth,
-                  height: canvas.scrollHeight,
-                  windowWidth: canvas.scrollWidth,
-                  windowHeight: canvas.scrollHeight,
-                  scrollX: 0,
-                  scrollY: 0,
-                  useCORS: true,
-                  allowTaint: true,
-                  foreignObjectRendering: true,
-                  backgroundColor: getVar('--canvas-bg')
-                }).then(cEl => {
-                  const imgData = cEl.toDataURL('image/png');
-                  const { jsPDF } = window.jspdf;
-                  const orient = canvas.scrollWidth > canvas.scrollHeight ? 'l' : 'p';
-                  const pdf = new jsPDF({
-                    orientation: orient,
-                    unit: 'pt',
-                    format: [canvas.scrollWidth, canvas.scrollHeight]
-                  });
-                  pdf.addImage(imgData, 'PNG', 0, 0, canvas.scrollWidth, canvas.scrollHeight);
-                  pdf.save('onmymind.pdf');
-                  if (selectedNode) selectedNode.classList.add('selected');
-                  window.scrollTo(oldX, oldY);
-                }).catch(err => {
-                  alert('Error exporting PDF: ' + (err.message || 'Unknown error'));
-                  if (selectedNode) selectedNode.classList.add('selected');
-                  window.scrollTo(oldX, oldY);
-                });
-              }, 200);
-            } catch (e) {
-              alert('Error exporting PDF: ' + (e.message || 'Unknown error'));
-            }
-          });
+          const conns = instance.getAllConnections().map(c=>({
+            source: c.source.id,
+            target: c.target.id
+          }));
+          const data = { nodes: nodesToSave, connections: conns };
+          const json = JSON.stringify(data,null,2);
+          const blob = new Blob([json],{type:'application/json'});
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement('a');
+          a.href = url; a.download = 'onmymind.omm';
+          document.body.appendChild(a); a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch(e) {
+          alert('Error saving: '+e.message);
+        }
+      };
 
-          // Delete selected node
-          document.addEventListener('keydown', e => {
-            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNode) {
-              instance.remove(selectedNode);
-              selectedNode = null;
+      // Load
+      document.getElementById('loadBtn').onclick = ()=> fileInput.click();
+      fileInput.onchange = ()=>{
+        const f = fileInput.files[0]; if(!f) return;
+        const r = new FileReader();
+        r.onload = e=>{
+          try {
+            const obj = JSON.parse(e.target.result);
+            instance.deleteEveryConnection();
+            document.querySelectorAll('.node').forEach(n=>n.remove());
+            offsetCount=0;
+            obj.nodes.forEach(nd=> makeNode(nd.type||nd.type, nd));
+            setTimeout(()=>{
+              obj.connections.forEach(cn=>
+                instance.connect({ source:cn.source, target:cn.target, type:'basic' })
+              );
               updateCanvasSize();
-              e.preventDefault();
-            }
-          });
-        })();
+            },50);
+          } catch(er) {
+            alert('Error loading: '+er.message);
+          }
+        };
+        r.readAsText(f);
+        fileInput.value = '';
+      };
 
-        updateCanvasSize();
+      // Export PNG
+      document.getElementById('exportPngBtn').onclick = ()=>{
+        try {
+          instance.repaintEverything();
+          canvas.querySelectorAll('canvas.jtk-connector').forEach(cc=>{
+            cc.width  = canvas.scrollWidth;
+            cc.height = canvas.scrollHeight;
+            cc.style.width  = canvas.scrollWidth + 'px';
+            cc.style.height = canvas.scrollHeight + 'px';
+          });
+          if(selectedNode) selectedNode.classList.remove('selected');
+          const ox=window.scrollX, oy=window.scrollY;
+          window.scrollTo(0,0);
+          setTimeout(()=>{
+            html2canvas(canvas,{
+              scale:1,
+              width:canvas.scrollWidth,
+              height:canvas.scrollHeight,
+              windowWidth:canvas.scrollWidth,
+              windowHeight:canvas.scrollHeight,
+              scrollX:0, scrollY:0,
+              useCORS:true,
+              allowTaint:true,
+              foreignObjectRendering:true,
+              backgroundColor:getVar('--canvas-bg')
+            }).then(cEl=>{
+              cEl.toBlob(blob=>{
+                const a=document.createElement('a');
+                a.href=URL.createObjectURL(blob);
+                a.download='onmymind.png';
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
+                if(selectedNode) selectedNode.classList.add('selected');
+                window.scrollTo(ox,oy);
+              });
+            }).catch(err=>{
+              alert('Error exporting PNG: '+err.message);
+              if(selectedNode) selectedNode.classList.add('selected');
+              window.scrollTo(ox,oy);
+            });
+          },200);
+        } catch(e) {
+          alert('Error exporting PNG: '+e.message);
+        }
+      };
+
+      // Export PDF
+      document.getElementById('exportPdfBtn').onclick = ()=>{
+        try {
+          instance.repaintEverything();
+          canvas.querySelectorAll('canvas.jtk-connector').forEach(cc=>{
+            cc.width  = canvas.scrollWidth;
+            cc.height = canvas.scrollHeight;
+            cc.style.width  = canvas.scrollWidth + 'px';
+            cc.style.height = canvas.scrollHeight + 'px';
+          });
+          if(selectedNode) selectedNode.classList.remove('selected');
+          const ox=window.scrollX, oy=window.scrollY;
+          window.scrollTo(0,0);
+          setTimeout(()=>{
+            html2canvas(canvas,{
+              scale:1,
+              width:canvas.scrollWidth,
+              height:canvas.scrollHeight,
+              windowWidth:canvas.scrollWidth,
+              windowHeight:canvas.scrollHeight,
+              scrollX:0,scrollY:0,
+              useCORS:true,
+              allowTaint:true,
+              foreignObjectRendering:true,
+              backgroundColor:getVar('--canvas-bg')
+            }).then(cEl=>{
+              const imgData=cEl.toDataURL('image/png');
+              const { jsPDF } = window.jspdf;
+              const orient= canvas.scrollWidth>canvas.scrollHeight?'l':'p';
+              const pdf=new jsPDF({orientation:orient,unit:'pt',format:[canvas.scrollWidth,canvas.scrollHeight]});
+              pdf.addImage(imgData,'PNG',0,0,canvas.scrollWidth,canvas.scrollHeight);
+              pdf.save('onmymind.pdf');
+              if(selectedNode) selectedNode.classList.add('selected');
+              window.scrollTo(ox,oy);
+            }).catch(err=>{
+              alert('Error exporting PDF: '+err.message);
+              if(selectedNode) selectedNode.classList.add('selected');
+              window.scrollTo(ox,oy);
+            });
+          },200);
+        } catch(e) {
+          alert('Error exporting PDF: '+e.message);
+        }
+      };
+
+      // Delete with Backspace/Delete
+      document.addEventListener('keydown',e=>{
+        if((e.key==='Delete'||e.key==='Backspace')&&selectedNode){
+          instance.remove(selectedNode);
+          selectedNode=null;
+          updateCanvasSize();
+          e.preventDefault();
+        }
       });
-    } catch (err) {
-      console.error("Startup error:", err);
-      alert("Error initializing OnMyMind: " + err.message);
-    }
+
+      // Initial layout
+      updateCanvasSize();
+    });
   </script>
 </body>
 </html>
