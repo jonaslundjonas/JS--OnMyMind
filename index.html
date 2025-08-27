@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>OnMyMind v1.4</title>
+  <title>OnMyMind v1.2</title>
   <style>
     :root {
       --toolbar-bg: #f0f0f0;
@@ -440,7 +440,7 @@
         } else {
           const text = document.createElement('div');
           text.className = 'text';
-          text.contentEditable = true;
+          text.contentEditable = false;
           text.innerHTML = data.text || 'Node';
           if(data.color) node.style.backgroundColor = data.color;
           if(data.textStyles){
@@ -451,7 +451,13 @@
             if(data.textStyles.fontSize)  text.style.fontSize   = data.textStyles.fontSize;
           }
           node.appendChild(text);
+          text.addEventListener('dblclick', () => {
+            text.contentEditable = true;
+            text.focus();
+            document.execCommand('selectAll', false, null);
+          });
           text.onblur = ()=>{
+            text.contentEditable = false;
             updateCanvasSize();
             instance.revalidate(node.id);
           };
@@ -478,7 +484,7 @@
           if(selectedNode && selectedNode!==node) selectedNode.classList.remove('selected');
           selectedNode = node;
           node.classList.add('selected');
-          e.stopPropagation();
+          //e.stopPropagation(); // Removed to allow dblclick to fire reliably.
         };
 
         instance.draggable(node,{
