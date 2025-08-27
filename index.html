@@ -19,6 +19,7 @@
       --popup-bg: var(--toolbar-button-bg);
       --popup-text: var(--text-color);
       --popup-border: var(--node-border);
+      --tag-connector-color: #f90;
     }
     body.dark {
       --toolbar-bg: #444;
@@ -34,6 +35,7 @@
       --popup-bg: var(--toolbar-button-bg);
       --popup-text: var(--text-color);
       --popup-border: var(--node-border);
+      --tag-connector-color: #fc0;
     }
     body {
       margin: 0; padding: 0;
@@ -87,6 +89,7 @@
     .circle  { width:100px; height:100px; border-radius:50%; min-width:50px; min-height:50px; }
     .ellipse { width:150px; height:75px; border-radius:50%; min-width:100px; min-height:50px; }
     .image   { width:200px; height:150px; }
+    .circle, .ellipse { border-width: 5px; }
     .selected {
       outline: 3px dashed var(--selected-outline);
       outline-offset: 2px;
@@ -133,6 +136,74 @@
       position: fixed; bottom:5px; right:10px;
       font-size: 0.8em; opacity: 0.7;
     }
+    /* Modal styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: none; /* Initially hidden */
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .modal-content {
+      background: var(--toolbar-bg);
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      width: 400px;
+      max-width: 90%;
+      border: 1px solid var(--node-border);
+    }
+    .modal-content h3 {
+      margin-top: 0;
+      color: var(--text-color);
+    }
+    #tagInput {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+      background: var(--canvas-bg);
+      color: var(--text-color);
+      border: 1px solid var(--node-border);
+      border-radius: 4px;
+    }
+    #tagSuggestions {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 100px;
+      overflow-y: auto;
+      border: 1px solid var(--node-border);
+      border-radius: 4px;
+      display: none; /* Initially hidden */
+    }
+    #tagSuggestions li {
+      padding: 8px;
+      cursor: pointer;
+      background: var(--canvas-bg);
+      color: var(--text-color);
+    }
+    #tagSuggestions li:hover {
+      background: var(--toolbar-button-bg);
+    }
+    .modal-buttons {
+      text-align: right;
+      margin-top: 20px;
+    }
+    .modal-buttons button {
+      margin-left: 10px;
+      padding: 5px 15px;
+      background: var(--toolbar-button-bg);
+      color: var(--text-color);
+      border: 1px solid var(--node-border);
+      border-radius: 4px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -154,6 +225,7 @@
     <button id="alignCenterBtn">Center</button>
     <button id="alignRightBtn">Right</button>
     <button id="linkBtn">Link</button>
+    <button id="tagBtn">Tag</button>
     <button id="zoomIn">+</button>
     <button id="zoomOut">-</button>
     <button id="rotateLeft">Rotate L</button>
@@ -172,6 +244,18 @@
   <div id="linkPopup"></div>
   <div id="footer">Created by Jonas Lund 2025</div>
 
+  <div id="tagDialog" class="modal-overlay">
+    <div class="modal-content">
+      <h3>Edit Tags</h3>
+      <input type="text" id="tagInput" placeholder="Enter comma-separated tags...">
+      <ul id="tagSuggestions"></ul>
+      <div class="modal-buttons">
+        <button id="tagOkBtn">OK</button>
+        <button id="tagCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -183,6 +267,11 @@
       const imageInput  = document.getElementById('imageInput');
       const themeToggle = document.getElementById('themeToggle');
       const colorPicker = document.getElementById('colorPicker');
+      const tagDialog      = document.getElementById('tagDialog');
+      const tagInput       = document.getElementById('tagInput');
+      const tagSuggestions = document.getElementById('tagSuggestions');
+      const tagOkBtn       = document.getElementById('tagOkBtn');
+      const tagCancelBtn   = document.getElementById('tagCancelBtn');
       let currentZoom=1, selectedNode=null, offsetCount=0, clipboardData=null;
 
       // Prevent toolbar buttons stealing focus
@@ -275,6 +364,53 @@
         };
       }
 
+      // Tagging
+      function updateTagConnections() {
+        // 1. Clear existing tag-based connections
+        const connectionsToDelete = instance.getAllConnections().filter(conn => conn.getParameter('tag-generated'));
+        connectionsToDelete.forEach(conn => instance.deleteConnection(conn));
+
+        // 2. Build a map of tags to nodes
+        const tagMap = new Map();
+        document.querySelectorAll('.node').forEach(node => {
+          const tags = (node.dataset.tags || '').split(',').map(t => t.trim()).filter(t => t);
+          tags.forEach(tag => {
+            if (!tagMap.has(tag)) {
+              tagMap.set(tag, []);
+            }
+            tagMap.get(tag).push(node.id);
+          });
+        });
+
+        // 3. Create new connections
+        const tagConnectorPaintStyle = {
+          stroke: getVar('--tag-connector-color'),
+          strokeWidth: 2,
+          dashstyle: '2 2'
+        };
+
+        tagMap.forEach((nodeIds, tag) => {
+          if (nodeIds.length > 1) {
+            nodeIds.sort(); // Ensure consistent order for connection creation
+            for (let i = 0; i < nodeIds.length; i++) {
+              for (let j = i + 1; j < nodeIds.length; j++) {
+                // Do not create a tag connection if a manual one already exists
+                const existing = instance.getConnections({ source: nodeIds[i], target: nodeIds[j] });
+                const existingReverse = instance.getConnections({ source: nodeIds[j], target: nodeIds[i] });
+                if (existing.length === 0 && existingReverse.length === 0) {
+                    instance.connect({
+                        source: nodeIds[i],
+                        target: nodeIds[j],
+                        paintStyle: tagConnectorPaintStyle,
+                        parameters: { 'tag-generated': true, 'tag': tag },
+                    });
+                }
+              }
+            }
+          }
+        });
+      }
+
       // Node factory
       function makeNode(type, data={}){
         const id = data.id || 'node_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
@@ -290,6 +426,8 @@
         // angle
         node.dataset.angle = data.angle || 0;
         node.style.transform = `rotate(${node.dataset.angle}deg)`;
+        // tags
+        if (data.tags) node.dataset.tags = data.tags;
         // size
         if(data.width)  node.style.width  = data.width;
         if(data.height) node.style.height = data.height;
@@ -368,7 +506,16 @@
       }
 
       instance.bind('connection', ()=> updateCanvasSize());
-      instance.bind('dblclick', (c,e)=>{ instance.deleteConnection(c); e.preventDefault(); });
+      instance.bind('dblclick', (c,e)=>{
+        if (c.getParameter('tag-generated')) {
+          // Do nothing, let the user remove the tag to remove the connection
+          e.preventDefault();
+          return;
+        }
+        instance.deleteConnection(c);
+        updateTagConnections();
+        e.preventDefault();
+      });
 
       // Link popup
       canvas.onmouseover = e=>{
@@ -418,7 +565,8 @@
             imageData:img.src,
             width:selectedNode.style.width,
             height:selectedNode.style.height,
-            angle:selectedNode.dataset.angle
+            angle:selectedNode.dataset.angle,
+            tags: selectedNode.dataset.tags || ''
           };
         } else {
           const t = selectedNode.querySelector('.text');
@@ -438,7 +586,8 @@
               textAlign:t.style.textAlign,
               fontSize: t.style.fontSize
             },
-            angle:selectedNode.dataset.angle
+            angle:selectedNode.dataset.angle,
+            tags: selectedNode.dataset.tags || ''
           };
         }
       };
@@ -446,6 +595,7 @@
         if(!clipboardData) return;
         if(selectedNode) selectedNode.classList.remove('selected');
         makeNode(clipboardData.shape, clipboardData);
+        updateTagConnections();
       };
 
       // Text formatting
@@ -487,6 +637,80 @@
         }
       };
 
+      function getAllTags() {
+        const allTags = new Set();
+        document.querySelectorAll('.node[data-tags]').forEach(node => {
+          (node.dataset.tags || '').split(',').forEach(tag => {
+            const t = tag.trim();
+            if (t) allTags.add(t);
+          });
+        });
+        return [...allTags];
+      }
+
+      tagInput.addEventListener('input', () => {
+        const allTags = getAllTags();
+        const value = tagInput.value;
+        const tags = value.split(',');
+        const currentTag = tags[tags.length - 1].trim();
+
+        tagSuggestions.innerHTML = '';
+        if (currentTag.length === 0) {
+          tagSuggestions.style.display = 'none';
+          return;
+        }
+
+        const suggestions = allTags.filter(tag =>
+          tag.toLowerCase().startsWith(currentTag.toLowerCase()) &&
+          tag.toLowerCase() !== currentTag.toLowerCase()
+        );
+
+        if (suggestions.length > 0) {
+          suggestions.forEach(suggestion => {
+            const li = document.createElement('li');
+            li.textContent = suggestion;
+            tagSuggestions.appendChild(li);
+          });
+          tagSuggestions.style.display = 'block';
+        } else {
+          tagSuggestions.style.display = 'none';
+        }
+      });
+
+      tagSuggestions.addEventListener('click', (e) => {
+        if (e.target.tagName === 'LI') {
+          const clickedTag = e.target.textContent;
+          const tags = tagInput.value.split(',');
+          tags[tags.length - 1] = clickedTag;
+          tagInput.value = tags.join(', ');
+          tagSuggestions.style.display = 'none';
+          tagInput.focus();
+        }
+      });
+
+      tagOkBtn.addEventListener('click', () => {
+        if (selectedNode) {
+          selectedNode.dataset.tags = tagInput.value.trim();
+          updateTagConnections();
+        }
+        tagDialog.style.display = 'none';
+        tagSuggestions.style.display = 'none';
+      });
+
+      tagCancelBtn.addEventListener('click', () => {
+        tagDialog.style.display = 'none';
+        tagSuggestions.style.display = 'none';
+      });
+
+      document.getElementById('tagBtn').onclick = ()=>{
+        if (!selectedNode) return;
+        tagInput.value = selectedNode.dataset.tags || '';
+        tagDialog.style.display = 'flex';
+        tagInput.focus();
+        // Trigger input event to show initial suggestions if any
+        tagInput.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+
       // Zoom / Rotate
       function applyZoom(){
         canvas.style.transform = `scale(${currentZoom})`;
@@ -520,7 +744,8 @@
               top:  n.style.top,
               width:  n.style.width  || getComputedStyle(n).width,
               height: n.style.height || getComputedStyle(n).height,
-              angle:  n.dataset.angle || 0
+              angle:  n.dataset.angle || 0,
+              tags: n.dataset.tags || ''
             };
             if(isImg){
               base.type = 'image';
@@ -578,6 +803,7 @@
                 instance.connect({ source:cn.source, target:cn.target, type:'basic' })
               );
               updateCanvasSize();
+              updateTagConnections();
             },50);
           } catch(er) {
             alert('Error loading: '+er.message);
@@ -685,6 +911,7 @@
           instance.remove(selectedNode);
           selectedNode=null;
           updateCanvasSize();
+          updateTagConnections();
           e.preventDefault();
         }
       });
