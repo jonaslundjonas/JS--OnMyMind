@@ -484,7 +484,7 @@
           if(selectedNode && selectedNode!==node) selectedNode.classList.remove('selected');
           selectedNode = node;
           node.classList.add('selected');
-          e.stopPropagation();
+          //e.stopPropagation(); // Removed to allow dblclick to fire reliably.
         };
 
         instance.draggable(node,{
