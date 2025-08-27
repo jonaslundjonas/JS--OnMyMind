@@ -440,7 +440,7 @@
         } else {
           const text = document.createElement('div');
           text.className = 'text';
-          text.contentEditable = true;
+          text.contentEditable = false;
           text.innerHTML = data.text || 'Node';
           if(data.color) node.style.backgroundColor = data.color;
           if(data.textStyles){
@@ -451,7 +451,13 @@
             if(data.textStyles.fontSize)  text.style.fontSize   = data.textStyles.fontSize;
           }
           node.appendChild(text);
+          text.addEventListener('dblclick', () => {
+            text.contentEditable = true;
+            text.focus();
+            document.execCommand('selectAll', false, null);
+          });
           text.onblur = ()=>{
+            text.contentEditable = false;
             updateCanvasSize();
             instance.revalidate(node.id);
           };
