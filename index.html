@@ -54,7 +54,8 @@
       position: sticky; top: 0; z-index: 10;
     }
     #toolbar button,
-    #toolbar input[type="color"] {
+    #toolbar input[type="color"],
+    #toolbar select {
       margin: 2px; padding: 5px;
       background: var(--toolbar-button-bg);
       color: var(--text-color);
@@ -236,8 +237,15 @@
     <button id="boldBtn">B</button>
     <button id="italicBtn">I</button>
     <button id="underlineBtn">U</button>
-    <button id="fontSizeDecreaseBtn">-A</button>
-    <button id="fontSizeIncreaseBtn">+A</button>
+    <select id="fontSizeSelect" title="Font Size">
+      <option value="10">10px</option>
+      <option value="12">12px</option>
+      <option value="14">14px</option>
+      <option value="16" selected>16px</option>
+      <option value="20">20px</option>
+      <option value="24">24px</option>
+      <option value="32">32px</option>
+    </select>
     <button id="bulletBtn">• List</button>
     <button id="alignLeftBtn">Left</button>
     <button id="alignCenterBtn">Center</button>
@@ -293,6 +301,7 @@
       const tagOkBtn       = document.getElementById('tagOkBtn');
       const tagCancelBtn   = document.getElementById('tagCancelBtn');
       const colorModeBtn   = document.getElementById('colorModeBtn');
+      const fontSizeSelect = document.getElementById('fontSizeSelect');
       let currentZoom=1, selectedNode=null, offsetCount=0, clipboardData=null, colorMode='node';
 
       colorModeBtn.onclick = () => {
@@ -647,34 +656,27 @@
       document.getElementById('boldBtn').onclick      = ()=> formatText('bold');
       document.getElementById('italicBtn').onclick    = ()=> formatText('italic');
       document.getElementById('underlineBtn').onclick = ()=> formatText('underline');
-      const MINFS=8, MAXFS=72, STEPFS=2;
-      function changeFontSizeOnSelection(delta) {
+      fontSizeSelect.onchange = () => {
         if (!selectedNode) return;
         const textEl = selectedNode.querySelector('.text');
-        if (document.activeElement !== textEl) return;
+        if (document.activeElement !== textEl) {
+            textEl.focus();
+        }
 
         const selection = window.getSelection();
         if (!selection.rangeCount || selection.isCollapsed) return;
 
         const range = selection.getRangeAt(0);
-
-        // Create a new span and apply the style
         const span = document.createElement('span');
-        const parentElement = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
-                            ? range.commonAncestorContainer.parentElement
-                            : range.commonAncestorContainer;
-        const currentSize = parseFloat(window.getComputedStyle(parentElement).fontSize) || 16;
-        const newSize = Math.max(MINFS, Math.min(MAXFS, currentSize + delta));
-        span.style.fontSize = newSize + 'px';
+        span.style.fontSize = fontSizeSelect.value + 'px';
 
         span.appendChild(range.extractContents());
         range.insertNode(span);
 
         selection.removeAllRanges();
+        selection.addRange(range);
         instance.revalidate(selectedNode.id);
-      }
-      document.getElementById('fontSizeIncreaseBtn').onclick = () => changeFontSizeOnSelection(STEPFS);
-      document.getElementById('fontSizeDecreaseBtn').onclick = () => changeFontSizeOnSelection(-STEPFS);
+      };
 
       document.getElementById('alignLeftBtn').onclick   = () => formatText('justifyLeft');
       document.getElementById('alignCenterBtn').onclick = () => formatText('justifyCenter');
