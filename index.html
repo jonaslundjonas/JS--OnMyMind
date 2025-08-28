@@ -20,6 +20,7 @@
       --popup-text: var(--text-color);
       --popup-border: var(--node-border);
       --tag-connector-color: #f90;
+      --code-bg: #e0e0e0;
     }
     body.dark {
       --toolbar-bg: #444;
@@ -36,6 +37,7 @@
       --popup-text: var(--text-color);
       --popup-border: var(--node-border);
       --tag-connector-color: #fc0;
+      --code-bg: #2a2a2a;
     }
     body {
       margin: 0; padding: 0;
@@ -98,6 +100,9 @@
       width:100%; height:100%; padding:10px;
       box-sizing: border-box; overflow:auto; outline:none;
       text-align:center; color:var(--text-color);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
     .text a {
       color: var(--link-color);
@@ -135,6 +140,19 @@
     #footer {
       position: fixed; bottom:5px; right:10px;
       font-size: 0.8em; opacity: 0.7;
+    }
+    .text pre {
+      background: var(--code-bg);
+      padding: 10px;
+      border-radius: 4px;
+      text-align: left;
+      white-space: pre;
+      overflow: auto;
+      max-height: 100%;
+      box-sizing: border-box;
+    }
+    .text code {
+      font-family: monospace;
     }
     /* Modal styles */
     .modal-overlay {
@@ -225,12 +243,14 @@
     <button id="alignCenterBtn">Center</button>
     <button id="alignRightBtn">Right</button>
     <button id="linkBtn">Link</button>
+    <button id="codeBtn">Code</button>
     <button id="tagBtn">Tag</button>
     <button id="zoomIn">+</button>
     <button id="zoomOut">-</button>
     <button id="rotateLeft">Rotate L</button>
     <button id="rotateRight">Rotate R</button>
     <input id="colorPicker" type="color"/>
+    <button id="colorModeBtn" title="Toggle color target (Node/Text)">Node</button>
     <button id="saveBtn">Save</button>
     <button id="loadBtn">Load</button>
     <button id="exportPngBtn">Export PNG</button>
@@ -272,7 +292,18 @@
       const tagSuggestions = document.getElementById('tagSuggestions');
       const tagOkBtn       = document.getElementById('tagOkBtn');
       const tagCancelBtn   = document.getElementById('tagCancelBtn');
-      let currentZoom=1, selectedNode=null, offsetCount=0, clipboardData=null;
+      const colorModeBtn   = document.getElementById('colorModeBtn');
+      let currentZoom=1, selectedNode=null, offsetCount=0, clipboardData=null, colorMode='node';
+
+      colorModeBtn.onclick = () => {
+        if (colorMode === 'node') {
+          colorMode = 'text';
+          colorModeBtn.textContent = 'Text';
+        } else {
+          colorMode = 'node';
+          colorModeBtn.textContent = 'Node';
+        }
+      };
 
       // Prevent toolbar buttons stealing focus
       document.querySelectorAll('#toolbar button')
@@ -605,28 +636,49 @@
       };
 
       // Text formatting
-      function toggleCls(c){ if(!selectedNode) return; const t=selectedNode.querySelector('.text'); t.classList.toggle(c); t.focus(); }
-      document.getElementById('boldBtn').onclick      = ()=> toggleCls('text-bold');
-      document.getElementById('italicBtn').onclick    = ()=> toggleCls('text-italic');
-      document.getElementById('underlineBtn').onclick = ()=> toggleCls('text-underline');
+      function formatText(command, value = null) {
+        if (!selectedNode) return;
+        const textEl = selectedNode.querySelector('.text');
+        if (document.activeElement !== textEl) {
+          textEl.focus();
+        }
+        document.execCommand(command, false, value);
+      }
+      document.getElementById('boldBtn').onclick      = ()=> formatText('bold');
+      document.getElementById('italicBtn').onclick    = ()=> formatText('italic');
+      document.getElementById('underlineBtn').onclick = ()=> formatText('underline');
       const MINFS=8, MAXFS=72, STEPFS=2;
-      function changeFS(d){
-        if(!selectedNode) return;
-        const t = selectedNode.querySelector('.text');
-        let cur = parseFloat(t.style.fontSize)|| parseFloat(getComputedStyle(t).fontSize)||16;
-        let nxt = Math.max(MINFS, Math.min(MAXFS,cur+d));
-        t.style.fontSize = nxt+'px';
+      function changeFontSizeOnSelection(delta) {
+        if (!selectedNode) return;
+        const textEl = selectedNode.querySelector('.text');
+        if (document.activeElement !== textEl) return;
+
+        const selection = window.getSelection();
+        if (!selection.rangeCount || selection.isCollapsed) return;
+
+        const range = selection.getRangeAt(0);
+
+        // Create a new span and apply the style
+        const span = document.createElement('span');
+        const parentElement = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+                            ? range.commonAncestorContainer.parentElement
+                            : range.commonAncestorContainer;
+        const currentSize = parseFloat(window.getComputedStyle(parentElement).fontSize) || 16;
+        const newSize = Math.max(MINFS, Math.min(MAXFS, currentSize + delta));
+        span.style.fontSize = newSize + 'px';
+
+        span.appendChild(range.extractContents());
+        range.insertNode(span);
+
+        selection.removeAllRanges();
         instance.revalidate(selectedNode.id);
       }
-      document.getElementById('fontSizeIncreaseBtn').onclick = ()=> changeFS(STEPFS);
-      document.getElementById('fontSizeDecreaseBtn').onclick = ()=> changeFS(-STEPFS);
+      document.getElementById('fontSizeIncreaseBtn').onclick = () => changeFontSizeOnSelection(STEPFS);
+      document.getElementById('fontSizeDecreaseBtn').onclick = () => changeFontSizeOnSelection(-STEPFS);
 
-      ['alignLeftBtn','alignCenterBtn','alignRightBtn'].forEach((id,i)=>{
-        document.getElementById(id).onclick = ()=>{
-          if(!selectedNode) return;
-          selectedNode.querySelector('.text').style.textAlign = ['left','center','right'][i];
-        };
-      });
+      document.getElementById('alignLeftBtn').onclick   = () => formatText('justifyLeft');
+      document.getElementById('alignCenterBtn').onclick = () => formatText('justifyCenter');
+      document.getElementById('alignRightBtn').onclick  = () => formatText('justifyRight');
       document.getElementById('bulletBtn').onclick = ()=>{
         if(!selectedNode) return;
         const t = selectedNode.querySelector('.text');
@@ -641,6 +693,27 @@
           document.execCommand('createLink',false,url);
           t.querySelectorAll('a').forEach(a=>{a.target='_blank';a.rel='noopener';});
         }
+      };
+
+      document.getElementById('codeBtn').onclick = () => {
+        if (!selectedNode) return;
+        const textEl = selectedNode.querySelector('.text');
+        if (document.activeElement !== textEl) return;
+
+        const selection = window.getSelection();
+        if (!selection.rangeCount || selection.isCollapsed) return;
+
+        const range = selection.getRangeAt(0);
+        const selectedFragment = range.extractContents();
+
+        const pre = document.createElement('pre');
+        const code = document.createElement('code');
+
+        code.appendChild(selectedFragment);
+        pre.appendChild(code);
+
+        range.insertNode(pre);
+        selection.removeAllRanges();
       };
 
       function getAllTags() {
@@ -736,7 +809,14 @@
       document.getElementById('rotateRight').onclick = ()=> rotateSel(15);
 
       // Color picker
-      colorPicker.oninput = ()=>{ if(selectedNode) selectedNode.style.backgroundColor = colorPicker.value; };
+      colorPicker.oninput = () => {
+        if (!selectedNode) return;
+        if (colorMode === 'node') {
+          selectedNode.style.backgroundColor = colorPicker.value;
+        } else { // colorMode is 'text'
+          formatText('foreColor', colorPicker.value);
+        }
+      };
 
       // Save
       document.getElementById('saveBtn').onclick = ()=>{
