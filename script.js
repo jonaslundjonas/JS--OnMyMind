@@ -239,13 +239,14 @@ jsPlumb.ready(function() {
 
           // Update the primary selected node
           selectedNode = selection[selection.length - 1] || null;
+          e.stopPropagation(); // Prevent canvas click from clearing selection
         };
 
         instance.draggable(node, {
             filter: ".resize-handle, a",
             start: (p) => {
-                // If the dragged node is not in the selection, clear selection and select it
-                if (!selection.includes(p.el)) {
+                // If dragging an unselected node, make it the only selection
+                if (!p.el.classList.contains('selected')) {
                     selection.forEach(n => n.classList.remove('selected'));
                     selection = [p.el];
                     p.el.classList.add('selected');
@@ -258,11 +259,14 @@ jsPlumb.ready(function() {
                 });
             },
             drag: (p) => {
-                const dx = p.pos[0] - parseFloat(p.el.dataset.dragStartX);
-                const dy = p.pos[1] - parseFloat(p.el.dataset.dragStartY);
+                const dragEl = p.el;
+                // Calculate delta from the dragged element's start position
+                const dx = p.pos[0] - parseFloat(dragEl.dataset.dragStartX);
+                const dy = p.pos[1] - parseFloat(dragEl.dataset.dragStartY);
 
                 selection.forEach(n => {
-                    if (n !== p.el) { // Move other selected nodes
+                    // jsPlumb handles the dragged element's position
+                    if (n !== dragEl) {
                         const newX = parseFloat(n.dataset.dragStartX) + dx;
                         const newY = parseFloat(n.dataset.dragStartY) + dy;
                         n.style.left = newX + 'px';
@@ -271,13 +275,11 @@ jsPlumb.ready(function() {
                     }
                 });
             },
-            stop: p => {
+            stop: (p) => {
                 selection.forEach(n => {
-                    // Final position is set by jsPlumb for the dragged element
-                    if (n !== p.el) {
-                        n.style.left = n.style.left;
-                        n.style.top = n.style.top;
-                    }
+                    // The dragged element's position is already set by jsPlumb
+                    // For others, the style was set during drag.
+                    // Just clean up the dataset attributes.
                     delete n.dataset.dragStartX;
                     delete n.dataset.dragStartY;
                 });
