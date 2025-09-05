@@ -12,9 +12,10 @@ jsPlumb.ready(function() {
       const tagCancelBtn   = document.getElementById('tagCancelBtn');
       const fontSizeSelect = document.getElementById('fontSizeSelect');
       let currentZoom=1, selectedNode=null, offsetCount=0, clipboardData=null;
+      let selection = []; // For multiple selections
 
       // Prevent toolbar buttons stealing focus
-      document.querySelectorAll('#toolbar button')
+      document.querySelectorAll('#toolbar button, #toolbar select')
               .forEach(b=>b.addEventListener('mousedown', e=>e.preventDefault()));
 
       const getVar = n=>getComputedStyle(document.body).getPropertyValue(n).trim();
@@ -220,19 +221,68 @@ jsPlumb.ready(function() {
             e.stopPropagation();
             return;
           }
-          if(selectedNode && selectedNode!==node) selectedNode.classList.remove('selected');
-          selectedNode = node;
-          node.classList.add('selected');
-          //e.stopPropagation(); // Removed to allow dblclick to fire reliably.
+
+          if (!e.shiftKey) {
+            // Clear previous selection unless shift is pressed
+            selection.forEach(n => n.classList.remove('selected'));
+            selection = [];
+          }
+
+          // Toggle selection for the current node
+          if (selection.includes(node)) {
+            selection = selection.filter(n => n !== node);
+            node.classList.remove('selected');
+          } else {
+            selection.push(node);
+            node.classList.add('selected');
+          }
+
+          // Update the primary selected node
+          selectedNode = selection[selection.length - 1] || null;
         };
 
-        instance.draggable(node,{
-          filter: ".resize-handle, a",
-          stop: p=>{
-            p.el.style.left = p.pos[0] + 'px';
-            p.el.style.top  = p.pos[1] + 'px';
-            updateCanvasSize();
-          }
+        instance.draggable(node, {
+            filter: ".resize-handle, a",
+            start: (p) => {
+                // If the dragged node is not in the selection, clear selection and select it
+                if (!selection.includes(p.el)) {
+                    selection.forEach(n => n.classList.remove('selected'));
+                    selection = [p.el];
+                    p.el.classList.add('selected');
+                    selectedNode = p.el;
+                }
+                // Record initial positions for all selected nodes
+                selection.forEach(n => {
+                    n.dataset.dragStartX = n.offsetLeft;
+                    n.dataset.dragStartY = n.offsetTop;
+                });
+            },
+            drag: (p) => {
+                const dx = p.pos[0] - parseFloat(p.el.dataset.dragStartX);
+                const dy = p.pos[1] - parseFloat(p.el.dataset.dragStartY);
+
+                selection.forEach(n => {
+                    if (n !== p.el) { // Move other selected nodes
+                        const newX = parseFloat(n.dataset.dragStartX) + dx;
+                        const newY = parseFloat(n.dataset.dragStartY) + dy;
+                        n.style.left = newX + 'px';
+                        n.style.top = newY + 'px';
+                        instance.revalidate(n.id);
+                    }
+                });
+            },
+            stop: p => {
+                selection.forEach(n => {
+                    // Final position is set by jsPlumb for the dragged element
+                    if (n !== p.el) {
+                        n.style.left = n.style.left;
+                        n.style.top = n.style.top;
+                    }
+                    delete n.dataset.dragStartX;
+                    delete n.dataset.dragStartY;
+                });
+                updateCanvasSize();
+            }
         });
         const anchors = ['Top','Right','Bottom','Left'];
         instance.makeSource(node,{
@@ -277,8 +327,9 @@ jsPlumb.ready(function() {
       };
       canvas.onmouseleave = ()=> linkPopup.style.display = 'none';
       canvas.onclick = e=>{
-        if(e.target===canvas && selectedNode){
-          selectedNode.classList.remove('selected');
+        if(e.target===canvas && selection.length > 0){
+          selection.forEach(n => n.classList.remove('selected'));
+          selection = [];
           selectedNode = null;
         }
       };
@@ -338,28 +389,45 @@ jsPlumb.ready(function() {
       };
       document.getElementById('pasteBtn').onclick = ()=>{
         if(!clipboardData) return;
-        if(selectedNode) selectedNode.classList.remove('selected');
+        selection.forEach(n => n.classList.remove('selected'));
+        selection = [];
+        selectedNode = null;
         makeNode(clipboardData.shape, clipboardData);
         updateTagConnections();
       };
 
       // Text formatting
-      function toggleCls(c){ if(!selectedNode) return; const t=selectedNode.querySelector('.text'); t.classList.toggle(c); t.focus(); }
+      function toggleCls(c){
+        if(selection.length === 0) return;
+        selection.forEach(n => {
+            const t = n.querySelector('.text');
+            if(t) t.classList.toggle(c);
+        });
+        if(selectedNode) selectedNode.querySelector('.text')?.focus();
+      }
       document.getElementById('boldBtn').onclick      = ()=> toggleCls('text-bold');
       document.getElementById('italicBtn').onclick    = ()=> toggleCls('text-italic');
       document.getElementById('underlineBtn').onclick = ()=> toggleCls('text-underline');
       fontSizeSelect.onchange = e => {
-        if(!selectedNode) return;
-        const t = selectedNode.querySelector('.text');
-        if (!t) return;
-        t.style.fontSize = e.target.value + 'px';
-        instance.revalidate(selectedNode.id);
+        if(selection.length === 0) return;
+        const fontSize = e.target.value + 'px';
+        selection.forEach(n => {
+            const t = n.querySelector('.text');
+            if (t) {
+                t.style.fontSize = fontSize;
+                instance.revalidate(n.id);
+            }
+        });
       };
 
       ['alignLeftBtn','alignCenterBtn','alignRightBtn'].forEach((id,i)=>{
         document.getElementById(id).onclick = ()=>{
-          if(!selectedNode) return;
-          selectedNode.querySelector('.text').style.textAlign = ['left','center','right'][i];
+            if(selection.length === 0) return;
+            const align = ['left','center','right'][i];
+            selection.forEach(n => {
+                const t = n.querySelector('.text');
+                if(t) t.style.textAlign = align;
+            });
         };
       });
       document.getElementById('bulletBtn').onclick = ()=>{
@@ -482,17 +550,43 @@ jsPlumb.ready(function() {
       document.getElementById('zoomIn').onclick  = ()=>{ currentZoom*=1.1; applyZoom(); };
       document.getElementById('zoomOut').onclick = ()=>{ currentZoom/=1.1; applyZoom(); };
       function rotateSel(d){
-        if(!selectedNode) return;
-        let a = parseInt(selectedNode.dataset.angle||0) + d;
-        selectedNode.dataset.angle = a;
-        selectedNode.style.transform = `rotate(${a}deg)`;
-        instance.revalidate(selectedNode.id);
+        if(selection.length === 0) return;
+        selection.forEach(n => {
+            let a = parseInt(n.dataset.angle||0) + d;
+            n.dataset.angle = a;
+            n.style.transform = `rotate(${a}deg)`;
+            instance.revalidate(n.id);
+        });
       }
       document.getElementById('rotateLeft').onclick  = ()=> rotateSel(-15);
       document.getElementById('rotateRight').onclick = ()=> rotateSel(15);
 
+      document.getElementById('disconnectBtn').onclick = () => {
+        if (selection.length < 2) return;
+        const selectionIds = new Set(selection.map(n => n.id));
+        const connectionsToDelete = [];
+
+        instance.getAllConnections().forEach(conn => {
+            if (selectionIds.has(conn.sourceId) && selectionIds.has(conn.targetId)) {
+                // Do not delete tag-generated connections, user should remove tags instead
+                if (!conn.getParameter('tag-generated')) {
+                    connectionsToDelete.push(conn);
+                }
+            }
+        });
+
+        connectionsToDelete.forEach(conn => instance.deleteConnection(conn));
+      };
+
       // Color picker
-      colorPicker.oninput = ()=>{ if(selectedNode) selectedNode.style.backgroundColor = colorPicker.value; };
+      colorPicker.oninput = ()=>{
+        if(selection.length === 0) return;
+        selection.forEach(n => {
+            if (!n.classList.contains('image')) {
+                n.style.backgroundColor = colorPicker.value;
+            }
+        });
+      };
 
       // Save
       document.getElementById('saveBtn').onclick = ()=>{
@@ -585,7 +679,8 @@ jsPlumb.ready(function() {
             cc.style.width  = canvas.scrollWidth + 'px';
             cc.style.height = canvas.scrollHeight + 'px';
           });
-          if(selectedNode) selectedNode.classList.remove('selected');
+          const currentSelection = [...selection];
+          if(selection.length > 0) selection.forEach(n=>n.classList.remove('selected'));
           const ox=window.scrollX, oy=window.scrollY;
           window.scrollTo(0,0);
           setTimeout(()=>{
@@ -608,12 +703,12 @@ jsPlumb.ready(function() {
                 document.body.appendChild(a); a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(a.href);
-                if(selectedNode) selectedNode.classList.add('selected');
+                if(currentSelection.length > 0) currentSelection.forEach(n=>n.classList.add('selected'));
                 window.scrollTo(ox,oy);
               });
             }).catch(err=>{
               alert('Error exporting PNG: '+err.message);
-              if(selectedNode) selectedNode.classList.add('selected');
+              if(currentSelection.length > 0) currentSelection.forEach(n=>n.classList.add('selected'));
               window.scrollTo(ox,oy);
             });
           },200);
@@ -632,7 +727,8 @@ jsPlumb.ready(function() {
             cc.style.width  = canvas.scrollWidth + 'px';
             cc.style.height = canvas.scrollHeight + 'px';
           });
-          if(selectedNode) selectedNode.classList.remove('selected');
+          const currentSelection = [...selection];
+          if(selection.length > 0) selection.forEach(n=>n.classList.remove('selected'));
           const ox=window.scrollX, oy=window.scrollY;
           window.scrollTo(0,0);
           setTimeout(()=>{
@@ -654,11 +750,11 @@ jsPlumb.ready(function() {
               const pdf=new jsPDF({orientation:orient,unit:'pt',format:[canvas.scrollWidth,canvas.scrollHeight]});
               pdf.addImage(imgData,'PNG',0,0,canvas.scrollWidth,canvas.scrollHeight);
               pdf.save('onmymind.pdf');
-              if(selectedNode) selectedNode.classList.add('selected');
+              if(currentSelection.length > 0) currentSelection.forEach(n=>n.classList.add('selected'));
               window.scrollTo(ox,oy);
             }).catch(err=>{
               alert('Error exporting PDF: '+err.message);
-              if(selectedNode) selectedNode.classList.add('selected');
+              if(currentSelection.length > 0) currentSelection.forEach(n=>n.classList.add('selected'));
               window.scrollTo(ox,oy);
             });
           },200);
@@ -669,12 +765,13 @@ jsPlumb.ready(function() {
 
       // Delete with Backspace/Delete
       document.addEventListener('keydown',e=>{
-        if((e.key==='Delete'||e.key==='Backspace')&&selectedNode){
-          instance.remove(selectedNode);
-          selectedNode=null;
-          updateCanvasSize();
-          updateTagConnections();
-          e.preventDefault();
+        if((e.key==='Delete'||e.key==='Backspace') && selection.length > 0){
+            selection.forEach(n => instance.remove(n));
+            selection = [];
+            selectedNode = null;
+            updateCanvasSize();
+            updateTagConnections();
+            e.preventDefault();
         }
       });
 
