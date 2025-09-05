@@ -4,66 +4,54 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>OnMyMind v1.6</title>
-  <link href="//cdn.muicss.com/mui-0.10.3/css/mui.min.css" rel="stylesheet" type="text/css" />
-  <script src="//cdn.muicss.com/mui-0.10.3/js/mui.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="dark">
-  <div id="toolbar" class="mui-panel">
-    <div class="mui-select">
-      <select id="themeSelector">
-        <option value="dark">Dark Theme</option>
-        <option value="light">Light Theme</option>
-        <option value="solarized-dark">Solarized Dark</option>
-        <option value="solarized-light">Solarized Light</option>
-        <option value="dracula">Dracula</option>
-      </select>
-    </div>
-    <button id="addRect" class="mui-btn mui-btn--primary">Rectangle</button>
-    <button id="addCircle" class="mui-btn mui-btn--primary">Circle</button>
-    <button id="addEllipse" class="mui-btn mui-btn--primary">Ellipse</button>
-    <button id="importImgBtn" class="mui-btn mui-btn--primary">Import Image</button>
-    <button id="copyBtn" class="mui-btn">Copy</button>
-    <button id="pasteBtn" class="mui-btn">Paste</button>
-    <button id="boldBtn" class="mui-btn">B</button>
-    <button id="italicBtn" class="mui-btn">I</button>
-    <button id="underlineBtn" class="mui-btn">U</button>
-    <div class="mui-select">
-      <select id="fontSizeSelect">
-        <option value="6">6px</option>
-        <option value="8">8px</option>
-        <option value="10">10px</option>
-        <option value="12">12px</option>
-        <option value="14">14px</option>
-        <option value="16" selected>16px</option>
-        <option value="18">18px</option>
-        <option value="20">20px</option>
-        <option value="24">24px</option>
-        <option value="28">28px</option>
-        <option value="32">32px</option>
-        <option value="36">36px</option>
-        <option value="48">48px</option>
-        <option value="60">60px</option>
-        <option value="72">72px</option>
-      </select>
-    </div>
-    <button id="bulletBtn" class="mui-btn">• List</button>
-    <button id="alignLeftBtn" class="mui-btn">Left</button>
-    <button id="alignCenterBtn" class="mui-btn">Center</button>
-    <button id="alignRightBtn" class="mui-btn">Right</button>
-    <button id="linkBtn" class="mui-btn">Link</button>
-    <button id="codeBtn" class="mui-btn">Code</button>
-    <button id="tagBtn" class="mui-btn">Tag</button>
-    <button id="zoomIn" class="mui-btn">+</button>
-    <button id="zoomOut" class="mui-btn">-</button>
-    <button id="rotateLeft" class="mui-btn">Rotate L</button>
-    <button id="rotateRight" class="mui-btn">Rotate R</button>
-    <button id="disconnectBtn" class="mui-btn">Disconnect</button>
+  <div id="toolbar">
+    <button id="themeToggle">Toggle Theme</button>
+    <button id="addRect">Rectangle</button>
+    <button id="addCircle">Circle</button>
+    <button id="addEllipse">Ellipse</button>
+    <button id="importImgBtn">Import Image</button>
+    <button id="copyBtn">Copy</button>
+    <button id="pasteBtn">Paste</button>
+    <button id="boldBtn">B</button>
+    <button id="italicBtn">I</button>
+    <button id="underlineBtn">U</button>
+    <select id="fontSizeSelect">
+      <option value="6">6px</option>
+      <option value="8">8px</option>
+      <option value="10">10px</option>
+      <option value="12">12px</option>
+      <option value="14">14px</option>
+      <option value="16" selected>16px</option>
+      <option value="18">18px</option>
+      <option value="20">20px</option>
+      <option value="24">24px</option>
+      <option value="28">28px</option>
+      <option value="32">32px</option>
+      <option value="36">36px</option>
+      <option value="48">48px</option>
+      <option value="60">60px</option>
+      <option value="72">72px</option>
+    </select>
+    <button id="bulletBtn">• List</button>
+    <button id="alignLeftBtn">Left</button>
+    <button id="alignCenterBtn">Center</button>
+    <button id="alignRightBtn">Right</button>
+    <button id="linkBtn">Link</button>
+    <button id="codeBtn">Code</button>
+    <button id="tagBtn">Tag</button>
+    <button id="zoomIn">+</button>
+    <button id="zoomOut">-</button>
+    <button id="rotateLeft">Rotate L</button>
+    <button id="rotateRight">Rotate R</button>
+    <button id="disconnectBtn">Disconnect</button>
     <input id="colorPicker" type="color"/>
-    <button id="saveBtn" class="mui-btn mui-btn--raised mui-btn--primary">Save</button>
-    <button id="loadBtn" class="mui-btn mui-btn--raised mui-btn--primary">Load</button>
-    <button id="exportPngBtn" class="mui-btn mui-btn--raised">Export PNG</button>
-    <button id="exportPdfBtn" class="mui-btn mui-btn--raised">Export PDF</button>
+    <button id="saveBtn">Save</button>
+    <button id="loadBtn">Load</button>
+    <button id="exportPngBtn">Export PNG</button>
+    <button id="exportPdfBtn">Export PDF</button>
     <input id="fileInput" type="file" accept=".omm" style="display:none"/>
     <input id="imageInput" type="file" accept="image/png,image/jpeg" style="display:none"/>
     <div id="versionLabel">OnMyMind v1.6</div>

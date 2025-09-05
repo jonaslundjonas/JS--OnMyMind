@@ -15,23 +15,6 @@
       --tag-connector-color: #f90;
       --code-bg: #e0e0e0;
     }
-    body.light {
-      --toolbar-bg: #f0f0f0;
-      --toolbar-button-bg: #e0e0e0;
-      --canvas-bg: #fafafa;
-      --node-bg: #fff;
-      --node-border: #000;
-      --text-color: #000;
-      --connector-color: #456;
-      --selected-outline: #36f;
-      --link-color: #0000ee;
-      --link-visited-color: #551a8b;
-      --popup-bg: var(--toolbar-button-bg);
-      --popup-text: var(--text-color);
-      --popup-border: var(--node-border);
-      --tag-connector-color: #f90;
-      --code-bg: #e0e0e0;
-    }
     body.dark {
       --toolbar-bg: #444;
       --toolbar-button-bg: #555;
@@ -49,71 +32,6 @@
       --tag-connector-color: #fc0;
       --code-bg: #2a2a2a;
     }
-    body.solarized-dark {
-      --base03:    #002b36; --base02:    #073642; --base01:    #586e75; --base00:    #657b83;
-      --base0:     #839496; --base1:     #93a1a1; --base2:     #eee8d5; --base3:     #fdf6e3;
-      --yellow:    #b58900; --orange:    #cb4b16; --red:       #dc322f; --magenta:   #d33682;
-      --violet:    #6c71c4; --blue:      #268bd2; --cyan:      #2aa198; --green:     #859900;
-
-      --toolbar-bg: var(--base03);
-      --toolbar-button-bg: var(--base02);
-      --canvas-bg: var(--base02);
-      --node-bg: var(--base01);
-      --node-border: var(--base0);
-      --text-color: var(--base1);
-      --connector-color: var(--cyan);
-      --selected-outline: var(--orange);
-      --link-color: var(--blue);
-      --link-visited-color: var(--violet);
-      --popup-bg: var(--base01);
-      --popup-text: var(--base2);
-      --popup-border: var(--base0);
-      --tag-connector-color: var(--yellow);
-      --code-bg: var(--base03);
-    }
-    body.solarized-light {
-      --base03:    #002b36; --base02:    #073642; --base01:    #586e75; --base00:    #657b83;
-      --base0:     #839496; --base1:     #93a1a1; --base2:     #eee8d5; --base3:     #fdf6e3;
-      --yellow:    #b58900; --orange:    #cb4b16; --red:       #dc322f; --magenta:   #d33682;
-      --violet:    #6c71c4; --blue:      #268bd2; --cyan:      #2aa198; --green:     #859900;
-
-      --toolbar-bg: var(--base3);
-      --toolbar-button-bg: var(--base2);
-      --canvas-bg: var(--base3);
-      --node-bg: var(--base2);
-      --node-border: var(--base01);
-      --text-color: var(--base01);
-      --connector-color: var(--cyan);
-      --selected-outline: var(--orange);
-      --link-color: var(--blue);
-      --link-visited-color: var(--violet);
-      --popup-bg: var(--base1);
-      --popup-text: var(--base02);
-      --popup-border: var(--base00);
-      --tag-connector-color: var(--yellow);
-      --code-bg: var(--base2);
-    }
-    body.dracula {
-      --background: #282a36; --current-line: #44475a; --foreground: #f8f8f2; --comment: #6272a4;
-      --cyan: #8be9fd; --green: #50fa7b; --orange: #ffb86c; --pink: #ff79c6;
-      --purple: #bd93f9; --red: #ff5555; --yellow: #f1fa8c;
-
-      --toolbar-bg: #21222C;
-      --toolbar-button-bg: var(--current-line);
-      --canvas-bg: var(--background);
-      --node-bg: var(--current-line);
-      --node-border: var(--comment);
-      --text-color: var(--foreground);
-      --connector-color: var(--purple);
-      --selected-outline: var(--green);
-      --link-color: var(--cyan);
-      --link-visited-color: var(--pink);
-      --popup-bg: var(--current-line);
-      --popup-text: var(--foreground);
-      --popup-border: var(--comment);
-      --tag-connector-color: var(--orange);
-      --code-bg: #21222C;
-    }
     body {
       margin: 0; padding: 0;
       font-family: sans-serif;
@@ -123,23 +41,27 @@
     }
     #toolbar {
       display: flex; flex-wrap: wrap; align-items: center;
-      padding: 10px 5px; /* Adjust padding for mui-panel */
+      padding: 5px;
       background: var(--toolbar-bg);
+      border-bottom: 1px solid var(--node-border);
       position: sticky; top: 0; z-index: 10;
     }
-    #toolbar .mui-btn,
-    #toolbar .mui-select,
+    #toolbar button,
+    #toolbar select,
     #toolbar input[type="color"] {
-      margin: 3px;
-    }
-    #toolbar .mui-select {
-      width: 150px; /* Give select a defined width */
-    }
-    #toolbar input[type="color"] {
-      width: 40px; height: 34px; padding: 2px;
-      vertical-align: middle; /* Align with buttons */
+      margin: 2px; padding: 5px;
+      background: var(--toolbar-button-bg);
+      color: var(--text-color);
       border: 1px solid var(--node-border);
-      background-color: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+    #toolbar button:hover {
+      background: var(--canvas-bg);
+    }
+    #toolbar input[type="color"] {
+      width: 40px; height: 28px; padding: 2px;
     }
     #versionLabel {
       margin-left: auto; padding-right: 10px;
