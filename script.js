@@ -10,6 +10,7 @@ jsPlumb.ready(function() {
       const tagSuggestions = document.getElementById('tagSuggestions');
       const tagOkBtn       = document.getElementById('tagOkBtn');
       const tagCancelBtn   = document.getElementById('tagCancelBtn');
+      const fontSizeSelect = document.getElementById('fontSizeSelect');
       let currentZoom=1, selectedNode=null, offsetCount=0, clipboardData=null;
 
       // Prevent toolbar buttons stealing focus
@@ -347,17 +348,13 @@ jsPlumb.ready(function() {
       document.getElementById('boldBtn').onclick      = ()=> toggleCls('text-bold');
       document.getElementById('italicBtn').onclick    = ()=> toggleCls('text-italic');
       document.getElementById('underlineBtn').onclick = ()=> toggleCls('text-underline');
-      const MINFS=8, MAXFS=72, STEPFS=2;
-      function changeFS(d){
+      fontSizeSelect.onchange = e => {
         if(!selectedNode) return;
         const t = selectedNode.querySelector('.text');
-        let cur = parseFloat(t.style.fontSize)|| parseFloat(getComputedStyle(t).fontSize)||16;
-        let nxt = Math.max(MINFS, Math.min(MAXFS,cur+d));
-        t.style.fontSize = nxt+'px';
+        if (!t) return;
+        t.style.fontSize = e.target.value + 'px';
         instance.revalidate(selectedNode.id);
-      }
-      document.getElementById('fontSizeIncreaseBtn').onclick = ()=> changeFS(STEPFS);
-      document.getElementById('fontSizeDecreaseBtn').onclick = ()=> changeFS(-STEPFS);
+      };
 
       ['alignLeftBtn','alignCenterBtn','alignRightBtn'].forEach((id,i)=>{
         document.getElementById(id).onclick = ()=>{

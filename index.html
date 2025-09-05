@@ -6,7 +6,7 @@
   <title>OnMyMind v1.6</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="dark">
   <div id="toolbar">
     <button id="themeToggle">Toggle Theme</button>
     <button id="addRect">Rectangle</button>
@@ -18,8 +18,23 @@
     <button id="boldBtn">B</button>
     <button id="italicBtn">I</button>
     <button id="underlineBtn">U</button>
-    <button id="fontSizeDecreaseBtn">-A</button>
-    <button id="fontSizeIncreaseBtn">+A</button>
+    <select id="fontSizeSelect">
+      <option value="6">6px</option>
+      <option value="8">8px</option>
+      <option value="10">10px</option>
+      <option value="12">12px</option>
+      <option value="14">14px</option>
+      <option value="16" selected>16px</option>
+      <option value="18">18px</option>
+      <option value="20">20px</option>
+      <option value="24">24px</option>
+      <option value="28">28px</option>
+      <option value="32">32px</option>
+      <option value="36">36px</option>
+      <option value="48">48px</option>
+      <option value="60">60px</option>
+      <option value="72">72px</option>
+    </select>
     <button id="bulletBtn">• List</button>
     <button id="alignLeftBtn">Left</button>
     <button id="alignCenterBtn">Center</button>
