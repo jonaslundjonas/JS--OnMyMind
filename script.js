@@ -3,7 +3,7 @@ jsPlumb.ready(function() {
       const linkPopup   = document.getElementById('linkPopup');
       const fileInput   = document.getElementById('fileInput');
       const imageInput  = document.getElementById('imageInput');
-      const themeToggle = document.getElementById('themeToggle');
+      const themeSelector = document.getElementById('themeSelector');
       const colorPicker = document.getElementById('colorPicker');
       const tagDialog      = document.getElementById('tagDialog');
       const tagInput       = document.getElementById('tagInput');
@@ -42,12 +42,33 @@ jsPlumb.ready(function() {
         RenderMode: 'canvas'
       });
 
-      // Theme toggle
-      themeToggle.onclick = ()=>{
-        document.body.classList.toggle('dark');
-        const c = getVar('--connector-color');
-        instance.importDefaults({ PaintStyle:{ stroke:c, strokeWidth:2 } });
-        instance.getAllConnections().forEach(cn=>cn.setPaintStyle({ stroke:c, strokeWidth:2 }));
+      // Theme switcher
+      const THEMES = ['light', 'dark', 'solarized-light', 'solarized-dark', 'dracula'];
+      themeSelector.onchange = ()=>{
+        const selectedTheme = themeSelector.value;
+        // Remove all theme classes
+        THEMES.forEach(t => document.body.classList.remove(t));
+        // Add the selected theme class
+        document.body.classList.add(selectedTheme);
+
+        // Update jsPlumb connector colors
+        setTimeout(() => {
+            const c = getVar('--connector-color');
+            const tc = getVar('--tag-connector-color');
+            const tagConnectorPaintStyle = {
+              stroke: tc,
+              strokeWidth: 2,
+              dashstyle: '2 2'
+            };
+            instance.importDefaults({ PaintStyle:{ stroke:c, strokeWidth:2 } });
+            instance.getAllConnections().forEach(cn => {
+                if (cn.getParameter('tag-generated')) {
+                    cn.setPaintStyle(tagConnectorPaintStyle);
+                } else {
+                    cn.setPaintStyle({ stroke: c, strokeWidth: 2 });
+                }
+            });
+        }, 50); // Use a short timeout to allow CSS variables to update
       };
 
       // Resize canvas to fit
