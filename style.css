@@ -62,6 +62,19 @@
     }
     #toolbar input[type="color"] {
       width: 40px; height: 28px; padding: 2px;
+      vertical-align: middle;
+    }
+    #toolbar label {
+      margin-left: 5px;
+    }
+    #toolbar input[type="number"] {
+      width: 50px;
+    }
+    .toolbar-divider {
+      margin: 0 10px;
+      font-size: 1.2em;
+      color: var(--node-border);
+      opacity: 0.5;
     }
     #versionLabel {
       margin-left: auto; padding-right: 10px;
@@ -130,6 +143,17 @@
       position: absolute !important;
       pointer-events: auto;
       z-index: 1;
+      cursor: pointer;
+    }
+    .jtk-connector-selected path {
+      stroke: var(--selected-outline) !important;
+      stroke-width: 4px !important;
+      animation: dash 0.5s linear infinite;
+    }
+    @keyframes dash {
+      to {
+        stroke-dashoffset: -20;
+      }
     }
     #footer {
       position: fixed; bottom:5px; right:10px;

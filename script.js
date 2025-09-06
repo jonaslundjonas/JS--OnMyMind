@@ -4,7 +4,12 @@ jsPlumb.ready(function() {
       const fileInput   = document.getElementById('fileInput');
       const imageInput  = document.getElementById('imageInput');
       const themeToggle = document.getElementById('themeToggle');
+      const undoBtn = document.getElementById('undoBtn');
+      const redoBtn = document.getElementById('redoBtn');
       const colorPicker = document.getElementById('colorPicker');
+      const connColorPicker = document.getElementById('connColorPicker');
+      const connThickness = document.getElementById('connThickness');
+      const connStyle = document.getElementById('connStyle');
       const tagDialog      = document.getElementById('tagDialog');
       const tagInput       = document.getElementById('tagInput');
       const tagSuggestions = document.getElementById('tagSuggestions');
@@ -13,6 +18,9 @@ jsPlumb.ready(function() {
       const fontSizeSelect = document.getElementById('fontSizeSelect');
       let currentZoom=1, selectedNode=null, offsetCount=0, clipboardData=null;
       let selection = []; // For multiple selections
+      let selectedConnection = null;
+      let undoStack = [];
+      let redoStack = [];
 
       // Prevent toolbar buttons stealing focus
       document.querySelectorAll('#toolbar button, #toolbar select')
@@ -42,8 +50,102 @@ jsPlumb.ready(function() {
         RenderMode: 'canvas'
       });
 
+      // --- UNDO/REDO ---
+      function updateUndoButtons() {
+        undoBtn.disabled = undoStack.length === 0;
+        redoBtn.disabled = redoStack.length === 0;
+      }
+
+      function getState() {
+        const nodes = [];
+        document.querySelectorAll('.node').forEach(n => {
+            const isImg = n.classList.contains('image');
+            const base = {
+                id: n.id, left: n.style.left, top: n.style.top,
+                width: n.style.width || getComputedStyle(n).width,
+                height: n.style.height || getComputedStyle(n).height,
+                angle: n.dataset.angle || 0,
+                tags: n.dataset.tags || ''
+            };
+            if (isImg) {
+                base.type = 'image';
+                base.imageData = n.querySelector('img').src;
+            } else {
+                const t = n.querySelector('.text');
+                const def = normalizeColor(getVar('--node-bg'));
+                const comp = normalizeColor(getComputedStyle(n).backgroundColor);
+                base.type = n.classList.contains('circle') ? 'circle' : n.classList.contains('ellipse') ? 'ellipse' : 'rect';
+                base.text = t.innerHTML;
+                base.color = (comp && comp !== def) ? comp : null;
+                base.textStyles = {
+                    bold: t.classList.contains('text-bold'),
+                    italic: t.classList.contains('text-italic'),
+                    underline: t.classList.contains('text-underline'),
+                    textAlign: t.style.textAlign,
+                    fontSize: t.style.fontSize
+                };
+            }
+            nodes.push(base);
+        });
+        const connections = instance.getAllConnections().filter(c => !c.getParameter('tag-generated')).map(c => ({
+            source: c.source.id,
+            target: c.target.id,
+            paintStyle: c.getPaintStyle()
+        }));
+        return { nodes, connections };
+      }
+
+      function loadState(state) {
+        instance.deleteEveryConnection();
+        if (selectedConnection) {
+            selectedConnection.canvas.classList.remove('jtk-connector-selected');
+            selectedConnection = null;
+        }
+        document.querySelectorAll('.node').forEach(n => n.remove());
+        offsetCount = 0;
+        selection = [];
+        selectedNode = null;
+
+        state.nodes.forEach(nd => makeNode(nd.type || 'rect', nd));
+        setTimeout(() => {
+            state.connections.forEach(cn => {
+                const conn = instance.connect({ source: cn.source, target: cn.target });
+                if (cn.paintStyle) {
+                    conn.setPaintStyle(cn.paintStyle);
+                }
+            });
+            updateCanvasSize();
+            updateTagConnections();
+        }, 50);
+      }
+
+      function saveState() {
+        redoStack = [];
+        undoStack.push(getState());
+        updateUndoButtons();
+      }
+
+      undoBtn.onclick = () => {
+        if (undoStack.length > 0) {
+            redoStack.push(getState());
+            const state = undoStack.pop();
+            loadState(state);
+            updateUndoButtons();
+        }
+      };
+
+      redoBtn.onclick = () => {
+        if (redoStack.length > 0) {
+            undoStack.push(getState());
+            const state = redoStack.pop();
+            loadState(state);
+            updateUndoButtons();
+        }
+      };
+
       // Theme toggle
       themeToggle.onclick = ()=>{
+        saveState();
         document.body.classList.toggle('dark');
         const c = getVar('--connector-color');
         instance.importDefaults({ PaintStyle:{ stroke:c, strokeWidth:2 } });
@@ -93,8 +195,10 @@ jsPlumb.ready(function() {
           document.documentElement.removeEventListener('mouseleave', stopDrag);
           instance.revalidate(nodeEl.id);
           updateCanvasSize();
+          saveState();
         }
         handleEl.onmousedown = e=>{
+          saveState();
           e.preventDefault(); e.stopPropagation();
           sx = e.clientX; sy = e.clientY;
           sw = nodeEl.offsetWidth; sh = nodeEl.offsetHeight;
@@ -192,6 +296,7 @@ jsPlumb.ready(function() {
           }
           node.appendChild(text);
           text.addEventListener('dblclick', () => {
+            saveState();
             text.contentEditable = true;
             text.focus();
             document.execCommand('selectAll', false, null);
@@ -200,6 +305,7 @@ jsPlumb.ready(function() {
             text.contentEditable = false;
             updateCanvasSize();
             instance.revalidate(node.id);
+            saveState();
           };
         }
 
@@ -245,6 +351,7 @@ jsPlumb.ready(function() {
         instance.draggable(node, {
             filter: ".resize-handle, a",
             start: (p) => {
+                saveState();
                 // If dragging an unselected node, make it the only selection
                 if (!p.el.classList.contains('selected')) {
                     selection.forEach(n => n.classList.remove('selected'));
@@ -284,6 +391,7 @@ jsPlumb.ready(function() {
                     delete n.dataset.dragStartY;
                 });
                 updateCanvasSize();
+                saveState();
             }
         });
         const anchors = ['Top','Right','Bottom','Left'];
@@ -302,13 +410,42 @@ jsPlumb.ready(function() {
         return node;
       }
 
-      instance.bind('connection', ()=> updateCanvasSize());
+      instance.bind('connection', (info, e) => {
+          if (e) saveState(); // Only save state on user-initiated connections
+          updateCanvasSize();
+      });
+
+      instance.bind('click', (c, e) => {
+        if (c.source && c.target) { // It's a connection
+            if (selectedConnection) {
+                selectedConnection.canvas.classList.remove('jtk-connector-selected');
+            }
+            if (selectedConnection === c) {
+                selectedConnection = null;
+            } else {
+                selectedConnection = c;
+                selectedConnection.canvas.classList.add('jtk-connector-selected');
+                const style = selectedConnection.getPaintStyle();
+                connColorPicker.value = style.stroke;
+                connThickness.value = style.strokeWidth;
+                if (style.dashstyle) {
+                    const [a, b] = style.dashstyle.split(' ').map(Number);
+                    if (a > b) connStyle.value = 'dashed';
+                    else connStyle.value = 'dotted';
+                } else {
+                    connStyle.value = 'solid';
+                }
+            }
+            e.stopPropagation();
+        }
+      });
       instance.bind('dblclick', (c,e)=>{
         if (c.getParameter('tag-generated')) {
           // Do nothing, let the user remove the tag to remove the connection
           e.preventDefault();
           return;
         }
+        saveState();
         instance.deleteConnection(c);
         updateTagConnections();
         e.preventDefault();
@@ -329,20 +466,26 @@ jsPlumb.ready(function() {
       };
       canvas.onmouseleave = ()=> linkPopup.style.display = 'none';
       canvas.onclick = e=>{
-        if(e.target===canvas && selection.length > 0){
-          selection.forEach(n => n.classList.remove('selected'));
-          selection = [];
-          selectedNode = null;
+        if(e.target===canvas){
+            if (selection.length > 0) {
+                selection.forEach(n => n.classList.remove('selected'));
+                selection = [];
+                selectedNode = null;
+            }
+            if (selectedConnection) {
+                selectedConnection.canvas.classList.remove('jtk-connector-selected');
+                selectedConnection = null;
+            }
         }
       };
 
       // Toolbar
-      document.getElementById('addRect').onclick    = ()=> makeNode('rect');
-      document.getElementById('addCircle').onclick  = ()=> makeNode('circle');
-      document.getElementById('addEllipse').onclick = ()=> makeNode('ellipse');
+      document.getElementById('addRect').onclick    = ()=> { saveState(); makeNode('rect'); };
+      document.getElementById('addCircle').onclick  = ()=> { saveState(); makeNode('circle'); };
+      document.getElementById('addEllipse').onclick = ()=> { saveState(); makeNode('ellipse'); };
 
       // Import Image
-      document.getElementById('importImgBtn').onclick = ()=> imageInput.click();
+      document.getElementById('importImgBtn').onclick = ()=> { saveState(); imageInput.click(); };
       imageInput.onchange = ()=>{
         const f = imageInput.files[0];
         if(!f) return;
@@ -391,6 +534,7 @@ jsPlumb.ready(function() {
       };
       document.getElementById('pasteBtn').onclick = ()=>{
         if(!clipboardData) return;
+        saveState();
         selection.forEach(n => n.classList.remove('selected'));
         selection = [];
         selectedNode = null;
@@ -401,6 +545,7 @@ jsPlumb.ready(function() {
       // Text formatting
       function toggleCls(c){
         if(selection.length === 0) return;
+        saveState();
         selection.forEach(n => {
             const t = n.querySelector('.text');
             if(t) t.classList.toggle(c);
@@ -412,6 +557,7 @@ jsPlumb.ready(function() {
       document.getElementById('underlineBtn').onclick = ()=> toggleCls('text-underline');
       fontSizeSelect.onchange = e => {
         if(selection.length === 0) return;
+        saveState();
         const fontSize = e.target.value + 'px';
         selection.forEach(n => {
             const t = n.querySelector('.text');
@@ -425,6 +571,7 @@ jsPlumb.ready(function() {
       ['alignLeftBtn','alignCenterBtn','alignRightBtn'].forEach((id,i)=>{
         document.getElementById(id).onclick = ()=>{
             if(selection.length === 0) return;
+            saveState();
             const align = ['left','center','right'][i];
             selection.forEach(n => {
                 const t = n.querySelector('.text');
@@ -434,11 +581,13 @@ jsPlumb.ready(function() {
       });
       document.getElementById('bulletBtn').onclick = ()=>{
         if(!selectedNode) return;
+        saveState();
         const t = selectedNode.querySelector('.text');
         t.focus(); document.execCommand('insertUnorderedList');
       };
       document.getElementById('linkBtn').onclick = ()=>{
         if(!selectedNode) return;
+        saveState();
         const t = selectedNode.querySelector('.text');
         t.focus();
         const url = prompt('URL:','https://');
@@ -450,6 +599,7 @@ jsPlumb.ready(function() {
 
       document.getElementById('codeBtn').onclick = () => {
         if (!selectedNode) return;
+        saveState();
         const textEl = selectedNode.querySelector('.text');
         if (document.activeElement !== textEl) return;
 
@@ -522,6 +672,7 @@ jsPlumb.ready(function() {
 
       tagOkBtn.addEventListener('click', () => {
         if (selectedNode) {
+          saveState();
           selectedNode.dataset.tags = tagInput.value.trim();
           updateTagConnections();
         }
@@ -553,6 +704,7 @@ jsPlumb.ready(function() {
       document.getElementById('zoomOut').onclick = ()=>{ currentZoom/=1.1; applyZoom(); };
       function rotateSel(d){
         if(selection.length === 0) return;
+        saveState();
         selection.forEach(n => {
             let a = parseInt(n.dataset.angle||0) + d;
             n.dataset.angle = a;
@@ -563,8 +715,31 @@ jsPlumb.ready(function() {
       document.getElementById('rotateLeft').onclick  = ()=> rotateSel(-15);
       document.getElementById('rotateRight').onclick = ()=> rotateSel(15);
 
+      // Connector Style Controls
+      function updateSelectedConnectionStyle() {
+        if (!selectedConnection) return;
+        saveState();
+        const color = connColorPicker.value;
+        const thickness = parseInt(connThickness.value, 10);
+        const style = connStyle.value;
+
+        const paintStyle = selectedConnection.getPaintStyle();
+        paintStyle.stroke = color;
+        paintStyle.strokeWidth = thickness;
+
+        if (style === 'dashed') paintStyle.dashstyle = `${thickness * 2} ${thickness}`;
+        else if (style === 'dotted') paintStyle.dashstyle = `${thickness} ${thickness}`;
+        else delete paintStyle.dashstyle;
+
+        selectedConnection.setPaintStyle(paintStyle);
+      }
+      connColorPicker.onchange = updateSelectedConnectionStyle;
+      connThickness.onchange = updateSelectedConnectionStyle;
+      connStyle.onchange = updateSelectedConnectionStyle;
+
       document.getElementById('disconnectBtn').onclick = () => {
         if (selection.length < 2) return;
+        saveState();
         const selectionIds = new Set(selection.map(n => n.id));
         const connectionsToDelete = [];
 
@@ -583,6 +758,7 @@ jsPlumb.ready(function() {
       // Color picker
       colorPicker.oninput = ()=>{
         if(selection.length === 0) return;
+        saveState();
         selection.forEach(n => {
             if (!n.classList.contains('image')) {
                 n.style.backgroundColor = colorPicker.value;
@@ -768,6 +944,7 @@ jsPlumb.ready(function() {
       // Delete with Backspace/Delete
       document.addEventListener('keydown',e=>{
         if((e.key==='Delete'||e.key==='Backspace') && selection.length > 0){
+            saveState();
             selection.forEach(n => instance.remove(n));
             selection = [];
             selectedNode = null;
@@ -779,4 +956,6 @@ jsPlumb.ready(function() {
 
       // Initial layout
       updateCanvasSize();
+      saveState(); // Save initial empty state
+      updateUndoButtons();
     });

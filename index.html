@@ -8,6 +8,8 @@
 </head>
 <body class="dark">
   <div id="toolbar">
+    <button id="undoBtn" disabled>Undo</button>
+    <button id="redoBtn" disabled>Redo</button>
     <button id="themeToggle">Toggle Theme</button>
     <button id="addRect">Rectangle</button>
     <button id="addCircle">Circle</button>
@@ -48,6 +50,18 @@
     <button id="rotateRight">Rotate R</button>
     <button id="disconnectBtn">Disconnect</button>
     <input id="colorPicker" type="color"/>
+    <span class="toolbar-divider">|</span>
+    <label for="connColorPicker">Connector Color:</label>
+    <input id="connColorPicker" type="color" value="#456"/>
+    <label for="connThickness">Thickness:</label>
+    <input id="connThickness" type="number" min="1" max="20" value="2"/>
+    <label for="connStyle">Style:</label>
+    <select id="connStyle">
+      <option value="solid">Solid</option>
+      <option value="dashed">Dashed</option>
+      <option value="dotted">Dotted</option>
+    </select>
+    <span class="toolbar-divider">|</span>
     <button id="saveBtn">Save</button>
     <button id="loadBtn">Load</button>
     <button id="exportPngBtn">Export PNG</button>
